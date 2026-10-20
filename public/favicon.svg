@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Docform">
+  <rect width="64" height="64" rx="14" fill="#0f6d5c"/>
+  <path d="M20 13h17l9 9v29H20z" fill="#ffffff"/>
+  <path d="M37 13v11h11" fill="#d8e8e3"/>
+  <path d="M27 33h15M27 40h15M27 47h10" stroke="#0f6d5c" stroke-width="3" stroke-linecap="round"/>
+</svg>

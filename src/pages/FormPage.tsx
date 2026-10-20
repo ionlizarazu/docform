@@ -1,0 +1,233 @@
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useServices } from '../app/services'
+import type { FormView } from '../domain/types'
+import { strings } from '../strings'
+import { bytesToBlob, downloadBlob } from '../ui/download'
+import { messageOf } from '../ui/errors'
+import NotFoundPage from './NotFoundPage'
+import { previewStorageKey } from './previewStorage'
+
+export default function FormPage() {
+  const { route = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const detected = searchParams.get('detected') === '1'
+  const { forms } = useServices()
+  const navigate = useNavigate()
+  const [form, setForm] = useState<FormView | null | undefined>(undefined)
+  const [answers, setAnswers] = useState<Map<string, string>>(() => new Map())
+  const [dirty, setDirty] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void forms
+      .get(route)
+      .then((loaded) => {
+        if (!cancelled) {
+          setLoadError(null)
+          setForm(loaded)
+          setAnswers(new Map())
+          setDirty(false)
+        }
+      })
+      .catch((loadFailure) => {
+        if (!cancelled) {
+          setLoadError(messageOf(loadFailure, strings.loadFailed))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [forms, route])
+
+  useEffect(() => {
+    if (!dirty) {
+      return
+    }
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = strings.leaveWarning
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
+  if (loadError !== null) {
+    return (
+      <section className="page">
+        <h1>{strings.loadFailed}</h1>
+        <p className="muted">{loadError}</p>
+        <Link className="button-link" to="/">
+          {strings.backToLibrary}
+        </Link>
+      </section>
+    )
+  }
+
+  if (form === undefined) {
+    return <p className="muted">{strings.loading}</p>
+  }
+
+  if (form === null) {
+    return <NotFoundPage title={strings.notFoundTitle} body={strings.notFoundBody} />
+  }
+
+  if (detected) {
+    return (
+      <section className="page">
+        <div className="page-heading">
+          <div>
+            <p className="eyebrow">{form.displayName}</p>
+            <h1>{strings.detectedTitle}</h1>
+            <p className="muted">{strings.detectedHint}</p>
+          </div>
+          <div className="upload-actions">
+            <Link className="button-link" to={`/f/${form.route}`}>
+              {strings.openForm}
+            </Link>
+            <Link className="button-link secondary" to="/">
+              {strings.backToLibrary}
+            </Link>
+          </div>
+        </div>
+        <ul className="detected-list">
+          {form.definition.fields.map((field, index) => (
+            <li key={`${field.label}-${index}`}>
+              <div>
+                <strong>{field.label}</strong>
+                <span className="badge">{field.kind}</span>
+              </div>
+              {field.options !== undefined && (
+                <p className="options">{field.options.join(' · ')}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  const setAnswer = (label: string, value: string) => {
+    setAnswers((current) => {
+      const next = new Map(current)
+      next.set(label, value)
+      return next
+    })
+    setDirty(true)
+  }
+
+  const handleDownload = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const filled = await forms.fill(route, answers)
+      downloadBlob(bytesToBlob(filled.bytes, filled.mimeType), filled.filename)
+      setDirty(false)
+    } catch (fillError) {
+      setError(
+        fillError instanceof Error ? fillError.message : strings.unsupportedUpload,
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handlePreview = () => {
+    sessionStorage.setItem(
+      previewStorageKey(route),
+      JSON.stringify(Array.from(answers.entries())),
+    )
+    navigate(`/f/${route}/preview`)
+  }
+
+  return (
+    <section className="page">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">
+            <Link
+              to="/"
+              onClick={(event) => {
+                if (dirty && !window.confirm(strings.leaveWarning)) {
+                  event.preventDefault()
+                }
+              }}
+            >
+              {strings.backToLibrary}
+            </Link>
+          </p>
+          <h1>{form.displayName}</h1>
+          <p className="muted">{strings.fieldsOptional}</p>
+        </div>
+        <span className="badge">{form.format}</span>
+      </div>
+
+      {error !== null && (
+        <div className="errors" role="alert">
+          {error}
+        </div>
+      )}
+
+      <form
+        className="form-card"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void handleDownload()
+        }}
+      >
+        {form.definition.fields.map((field, index) => {
+          const id = `field-${index}`
+          const value = answers.get(field.label) ?? ''
+          return (
+            <div className="field" key={`${field.label}-${index}`}>
+              <label htmlFor={id}>{field.label}</label>
+              {field.kind === 'textarea' ? (
+                <textarea
+                  id={id}
+                  name={field.label}
+                  rows={4}
+                  value={value}
+                  onChange={(event) => setAnswer(field.label, event.target.value)}
+                />
+              ) : field.kind === 'select' ? (
+                <select
+                  id={id}
+                  name={field.label}
+                  value={value}
+                  onChange={(event) => setAnswer(field.label, event.target.value)}
+                >
+                  <option value="">{strings.chooseOption}</option>
+                  {(field.options ?? []).map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id={id}
+                  name={field.label}
+                  type="text"
+                  value={value}
+                  onChange={(event) => setAnswer(field.label, event.target.value)}
+                />
+              )}
+            </div>
+          )
+        })}
+
+        <div className="form-actions">
+          <button type="submit" disabled={busy}>
+            {strings.download}
+          </button>
+          <button type="button" className="secondary" onClick={handlePreview} disabled={busy}>
+            {strings.preview}
+          </button>
+        </div>
+      </form>
+    </section>
+  )
+}
