@@ -1,6 +1,19 @@
 # Docform
 
-Status: ready-for-agent
+Status: done
+
+## Multilingual extension
+
+The product now supports **multilingual variant sets**, implemented after the original single-template spec. A form owns an ordered set of language variants: one template per locale, tagged at upload, with exactly one primary variant. The filler fills once; the app produces one filled document per variant and downloads them as one ZIP.
+
+- Every variant must declare the same labels and field kinds. Field order may differ; the form follows the primary variant's order.
+- Select fields must declare the same number of options in every variant. Options are paired **by position** across variants. The app shows a read-only pairing table at upload; there is no mapping editor.
+- The primary variant supplies the labels, field order, and select options shown to the filler.
+- A multi-variant route is a hash of the ordered variant list and the primary locale. A single template uploaded with the legacy `und` locale keeps the original content-hash route.
+- Form packages use a version 2 manifest; version 1 packages still import as a single `und` variant.
+- Adding, removing, or editing a variant creates a new route.
+- The user stories, implementation decisions, and testing decisions below describe the original single-template baseline. A single-template form is now a variant set of one.
+- See [`docs/adr/0002-language-variant-sets.md`](../../docs/adr/0002-language-variant-sets.md).
 
 ## Problem Statement
 

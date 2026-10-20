@@ -14,8 +14,11 @@ export default function PreviewPage() {
   const { route = '' } = useParams()
   const { forms, preview } = useServices()
   const [form, setForm] = useState<FormView | null | undefined>(undefined)
-  const [filled, setFilled] = useState<FilledDocument | null>(null)
-  const [result, setResult] = useState<PreviewResult | null>(null)
+  const [documents, setDocuments] = useState<FilledDocument[]>([])
+  const [zip, setZip] = useState<{ blob: Blob; filename: string } | null>(null)
+  const [activeLocale, setActiveLocale] = useState<string | null>(null)
+  const [results, setResults] = useState<Map<string, PreviewResult>>(() => new Map())
+  const [loadingLocale, setLoadingLocale] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [noAnswers, setNoAnswers] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -30,10 +33,14 @@ export default function PreviewPage() {
           return
         }
         setForm(undefined)
-        setFilled(null)
-        setResult(null)
+        setDocuments([])
+        setZip(null)
+        setActiveLocale(null)
+        setResults(new Map())
+        setLoadingLocale(null)
         setError(null)
         setNoAnswers(false)
+
         const loaded = await forms.get(route)
         if (cancelled) {
           return
@@ -42,26 +49,22 @@ export default function PreviewPage() {
         if (loaded === null) {
           return
         }
+
         const raw = sessionStorage.getItem(previewStorageKey(route))
         if (raw === null) {
           setNoAnswers(true)
           return
         }
+
         const entries = JSON.parse(raw) as [string, string][]
         const answers = new Map(entries)
-        const document = await forms.fill(route, answers)
+        const set = await forms.fill(route, answers)
         if (cancelled) {
           return
         }
-        setFilled(document)
-        const rendered = await preview.render({
-          bytes: document.bytes,
-          format: loaded.format,
-          filename: document.filename,
-        })
-        if (!cancelled) {
-          setResult(rendered)
-        }
+        setDocuments(set.documents)
+        setZip(set.zip)
+        setActiveLocale(set.documents[0]?.locale ?? null)
       } catch (previewError) {
         if (!cancelled) {
           setError(messageOf(previewError, strings.previewUnavailable))
@@ -72,7 +75,55 @@ export default function PreviewPage() {
     return () => {
       cancelled = true
     }
-  }, [forms, preview, route])
+  }, [forms, route])
+
+  useEffect(() => {
+    if (activeLocale === null) {
+      return
+    }
+    const document = documents.find((item) => item.locale === activeLocale)
+    if (document === undefined || results.has(activeLocale)) {
+      return
+    }
+
+    let cancelled = false
+
+    const run = async () => {
+      await Promise.resolve()
+      if (cancelled) {
+        return
+      }
+      setLoadingLocale(activeLocale)
+      try {
+        const result = await preview.render({
+          bytes: document.bytes,
+          format: document.format,
+          filename: document.filename,
+        })
+        if (!cancelled) {
+          setResults((current) => new Map(current).set(activeLocale, result))
+        }
+      } catch (renderError) {
+        if (!cancelled) {
+          setResults((current) =>
+            new Map(current).set(activeLocale, {
+              kind: 'unavailable',
+              reason: messageOf(renderError, strings.previewUnavailable),
+            }),
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingLocale(null)
+        }
+      }
+    }
+    void run()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeLocale, documents, preview, results])
 
   if (error !== null && form === undefined) {
     return (
@@ -106,9 +157,16 @@ export default function PreviewPage() {
     )
   }
 
+  const activeDocument = documents.find((item) => item.locale === activeLocale)
+  const activeResult = activeLocale === null ? null : results.get(activeLocale) ?? null
   const download = () => {
-    if (filled !== null) {
-      downloadBlob(bytesToBlob(filled.bytes, filled.mimeType), filled.filename)
+    if (zip !== null) {
+      downloadBlob(zip.blob, zip.filename)
+    } else if (activeDocument !== undefined) {
+      downloadBlob(
+        bytesToBlob(activeDocument.bytes, activeDocument.mimeType),
+        activeDocument.filename,
+      )
     }
   }
 
@@ -120,7 +178,11 @@ export default function PreviewPage() {
             <Link to={`/f/${route}`}>{strings.backToForm}</Link>
           </p>
           <h1>{strings.previewTitle}</h1>
-          <p className="muted">{strings.previewNotice}</p>
+          <p className="muted">
+            {form.variantCount > 1
+              ? strings.previewNoticePlural
+              : strings.previewNotice}
+          </p>
         </div>
         <div className="upload-actions">
           <button
@@ -128,15 +190,37 @@ export default function PreviewPage() {
             onClick={() =>
               iframeRef.current?.contentWindow?.postMessage(previewPrintMessage(), '*')
             }
-            disabled={result?.kind !== 'html'}
+            disabled={activeResult?.kind !== 'html'}
           >
             {strings.print}
           </button>
-          <button type="button" className="secondary" onClick={download} disabled={filled === null}>
-            {strings.download}
+          <button
+            type="button"
+            className="secondary"
+            onClick={download}
+            disabled={zip === null && activeDocument === undefined}
+          >
+            {zip !== null ? strings.downloadDocuments : strings.download}
           </button>
         </div>
       </div>
+
+      {documents.length > 1 && (
+        <div className="preview-tabs" role="tablist" aria-label={strings.languageVariants}>
+          {documents.map((document) => (
+            <button
+              key={document.locale}
+              type="button"
+              role="tab"
+              aria-selected={document.locale === activeLocale}
+              className={document.locale === activeLocale ? 'tab active' : 'tab'}
+              onClick={() => setActiveLocale(document.locale)}
+            >
+              {document.locale}
+            </button>
+          ))}
+        </div>
+      )}
 
       {error !== null && (
         <div className="errors" role="alert">
@@ -144,25 +228,32 @@ export default function PreviewPage() {
         </div>
       )}
 
-      {result === null && error === null && <p className="muted">{strings.loading}</p>}
+      {activeResult === null && error === null && (
+        <p className="muted">
+          {loadingLocale === null
+            ? strings.loading
+            : `${strings.loading} ${loadingLocale}…`}
+        </p>
+      )}
 
-      {result?.kind === 'unavailable' && (
+      {activeResult?.kind === 'unavailable' && (
         <div className="notice" role="status">
           <p>{strings.previewUnavailable}</p>
-          <p className="muted">{result.reason}</p>
-          <button type="button" onClick={download} disabled={filled === null}>
+          <p className="muted">{activeResult.reason}</p>
+          <button type="button" onClick={download} disabled={zip === null && activeDocument === undefined}>
             {strings.downloadInstead}
           </button>
         </div>
       )}
 
-      {result?.kind === 'html' && (
+      {activeResult?.kind === 'html' && (
         <iframe
+          key={activeLocale}
           ref={iframeRef}
           className="preview-frame"
           title={strings.previewTitle}
           sandbox="allow-scripts"
-          srcDoc={result.html}
+          srcDoc={activeResult.html}
         />
       )}
     </section>

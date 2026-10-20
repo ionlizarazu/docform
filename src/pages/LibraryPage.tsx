@@ -5,6 +5,7 @@ import type { FormSummary, TemplateError } from '../domain/types'
 import { strings } from '../strings'
 import { downloadBlob } from '../ui/download'
 import { messageOf } from '../ui/errors'
+import { NewFormPanel } from '../ui/NewFormPanel'
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString()
@@ -74,7 +75,14 @@ function FormRow({
           <span>
             {strings.uploadedLabel}: {formatDate(form.createdAt)}
           </span>
-          <span className="badge">{form.format}</span>
+          {form.locales.map((locale) => (
+            <span className="badge" key={locale}>
+              {locale === 'und' ? 'single' : locale}
+            </span>
+          ))}
+          {form.variantCount > 1 && (
+            <span className="muted">{form.variantCount} languages</span>
+          )}
         </div>
       </div>
       <div className="form-actions">
@@ -109,7 +117,7 @@ export default function LibraryPage() {
   const [items, setItems] = useState<FormSummary[]>([])
   const [errors, setErrors] = useState<TemplateError[]>([])
   const [busy, setBusy] = useState(false)
-  const uploadRef = useRef<HTMLInputElement>(null)
+  const [showNewForm, setShowNewForm] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(async () => {
@@ -139,29 +147,6 @@ export default function LibraryPage() {
       cancelled = true
     }
   }, [forms])
-
-  const handleUpload = async (file: File) => {
-    setBusy(true)
-    setErrors([])
-    try {
-      const result = await forms.ingest(file)
-      if (!result.ok) {
-        setErrors(result.errors)
-        return
-      }
-      await refresh()
-      navigate(`/f/${result.route}?detected=1`)
-    } catch (error) {
-      setErrors([
-        {
-          code: 'invalid-format',
-          message: error instanceof Error ? error.message : strings.unsupportedUpload,
-        },
-      ])
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const handleImport = async (file: File) => {
     setBusy(true)
@@ -209,20 +194,14 @@ export default function LibraryPage() {
           <p className="muted">{strings.librarySubtitle}</p>
         </div>
         <div className="upload-actions">
-          <input
-            ref={uploadRef}
-            className="visually-hidden"
-            type="file"
-            accept=".docx,.odt"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              if (file) {
-                void handleUpload(file)
-              }
+          <button
+            type="button"
+            onClick={() => {
+              setErrors([])
+              setShowNewForm((current) => !current)
             }}
-          />
-          <button type="button" onClick={() => uploadRef.current?.click()} disabled={busy}>
+            disabled={busy}
+          >
             {strings.upload}
           </button>
           <input
@@ -250,6 +229,21 @@ export default function LibraryPage() {
       </div>
 
       <p className="hint">{strings.uploadHint}</p>
+
+      {showNewForm && (
+        <NewFormPanel
+          forms={forms}
+          onCreated={(result) => {
+            setShowNewForm(false)
+            void (async () => {
+              await refresh()
+              navigate(`/f/${result.route}?detected=1`)
+            })()
+          }}
+          onCancel={() => setShowNewForm(false)}
+          onError={setErrors}
+        />
+      )}
 
       {errors.length > 0 && (
         <div className="errors" role="alert">

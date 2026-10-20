@@ -7,7 +7,6 @@ import { MIME_TYPES, TemplateFormError } from './types'
 import type {
   Answers,
   Field,
-  FormDefinition,
   TemplateError,
   TemplateFormat,
 } from './types'
@@ -165,6 +164,12 @@ async function collectParagraphs(
   return { paragraphs, errors }
 }
 
+export interface ParsedTemplate {
+  route: string
+  format: TemplateFormat
+  fields: Field[]
+}
+
 export async function detectTemplateFormat(bytes: Uint8Array): Promise<TemplateFormat> {
   const detected = await detectTemplate(bytes)
   return detected.format
@@ -173,7 +178,9 @@ export async function detectTemplateFormat(bytes: Uint8Array): Promise<TemplateF
 export async function parseTemplate(
   bytes: Uint8Array,
   route: string,
-): Promise<{ ok: true; definition: FormDefinition } | { ok: false; errors: TemplateError[] }> {
+): Promise<
+  { ok: true; definition: ParsedTemplate } | { ok: false; errors: TemplateError[] }
+> {
   let detected: DetectedTemplate
   try {
     detected = await detectTemplate(bytes)

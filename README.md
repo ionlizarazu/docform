@@ -1,17 +1,17 @@
 # Docform
 
-A client-only React app that turns a DOCX or ODT document containing `{{placeholders}}` into a fillable form and returns a filled document. Nothing leaves the browser.
+A client-only React app that turns a set of DOCX or ODT templates containing `{{placeholders}}` into one fillable form and returns one filled document per language. Nothing leaves the browser.
 
 ![The form library](docs/screenshots/library.png)
 
 ## What it does
 
-1. A template author uploads a `.docx` or `.odt` file.
-2. The app detects every placeholder, snapshots a form definition, stores everything in IndexedDB, and returns a stable route keyed by the file's SHA-256.
-3. A filler opens the route, completes the form, optionally previews and prints it, and downloads a filled document in the original format.
+1. A template author creates one form from one DOCX or ODT template per language, tags each with a locale, and chooses a primary language.
+2. The app validates the variant set, snapshots a shared form definition, stores every template in IndexedDB, and returns a stable route keyed by the ordered variant set.
+3. A filler opens the route, fills the form once, previews any language, and downloads a ZIP containing one filled document per language.
 4. The library lists forms stored in this browser, with rename, delete, and export/import of a portable `.formpack.json`.
 
-The same bytes always resolve to the same route, and the form definition never changes under an existing route. An edited template is a new route.
+The same variant set always resolves to the same route, and the form definition never changes under an existing route. Adding, removing, or editing a template is a new route.
 
 ![Detected fields](docs/screenshots/detected-fields.png)
 
@@ -31,6 +31,18 @@ The same bytes always resolve to the same route, and the form definition never c
 
 Placeholders are supported in the document body, tables, headers, and footers. Placeholders in text boxes, shapes, footnotes, comments, or annotations are rejected at upload.
 
+## Multilingual forms
+
+A form is an ordered **variant set**: one template per locale, one shared fill, one filled document per variant.
+
+- Every variant must declare the same labels and field kinds; field order may differ.
+- Select fields must declare the same number of options in every variant. Options are paired **by position**, so `Spain / France / Germany` pairs with `España / Francia / Alemania`. The detected-fields screen shows the pairing before you open the form.
+- The **primary variant** supplies the labels, field order, and select options the filler sees. Choose exactly one primary at upload.
+- Downloads are a ZIP named after the form, containing `<name>-<locale>-filled.<ext>` for every variant.
+- Preview has one tab per locale.
+
+The app cannot detect two option lists that happen to have the same length but different meanings. Keep the option order aligned in every template; a count mismatch fails the upload.
+
 ![The generated form](docs/screenshots/form.png)
 
 ## Run
@@ -49,19 +61,19 @@ npm test
 npm run build
 ```
 
-`npm run smoke` drives a real Chrome through upload, fill, download, DOCX preview, and ODT preview using the system Chrome at `/usr/bin/google-chrome`. It writes screenshots and a filled fixture to `/tmp/opencode/docform-smoke`.
+`npm run smoke` drives a real Chrome through a bilingual upload, fill, ZIP download, English DOCX preview, and Spanish ODT preview using the system Chrome at `/usr/bin/google-chrome`. It writes screenshots and the filled ZIP to `/tmp/opencode/docform-smoke`.
 
 ## Storage and privacy
 
-- Templates, form definitions, and display names live in IndexedDB under `template-form-docs`.
+- Every variant template, the shared form definition, and display names live in IndexedDB under `template-form-docs`.
 - There is no server, no account, no analytics, and no runtime network call for form data.
 - A route only resolves in the browser profile that stored it. Clearing site data removes it.
 - Export a `.formpack.json` to back up or move a form. Importing the same package twice is idempotent.
 
 ## Architecture
 
-- `src/domain/` — declaration grammar, DOCX/ODT text-node substitution, package detection, hashing.
-- `src/app/TemplateForms.ts` — the application service the UI consumes: ingest, list, get, rename, remove, fill, export/import.
+- `src/domain/` — declaration grammar, variant validation, DOCX/ODT text-node substitution, package detection, hashing.
+- `src/app/TemplateForms.ts` — the application service the UI consumes: variant-set ingest, list, get, rename, remove, fill, export/import.
 - `src/storage/` — the IndexedDB store.
 - `src/preview/` — a `PreviewRenderer` port with lazy `docx-preview` and `@opendocument/odr-core` adapters.
 - `src/pages/` — library, form, preview, and not-found pages.
@@ -76,13 +88,15 @@ Preview HTML is isolated in an opaque-origin iframe (`sandbox="allow-scripts"` w
 ## Limits
 
 - DOCX and ODT only. No PDF, `.doc`, or macro-enabled `.docm`.
-- No configuration editor: the template declares its own fields.
+- No configuration editor: each template declares its own fields and options. Select options are paired positionally; there is no mapping UI.
 - All fields are optional; there are no required, conditional, or computed fields.
-- Preview is approximate. The downloaded document is authoritative.
+- Preview is approximate. The downloaded documents are authoritative.
 - Forms are local to one browser profile; there are no share links, accounts, or collaboration.
 
 ## Design docs
 
 - Spec: [`.scratch/template-form/spec.md`](.scratch/template-form/spec.md)
 - Glossary: [`GLOSSARY.md`](GLOSSARY.md)
-- ADR: [`docs/adr/0001-inline-field-declarations.md`](docs/adr/0001-inline-field-declarations.md)
+- ADRs:
+  - [`docs/adr/0001-inline-field-declarations.md`](docs/adr/0001-inline-field-declarations.md)
+  - [`docs/adr/0002-language-variant-sets.md`](docs/adr/0002-language-variant-sets.md)

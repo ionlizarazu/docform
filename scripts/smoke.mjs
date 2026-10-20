@@ -75,7 +75,7 @@ async function makeOdt(filePath) {
   )
   zip.file(
     'content.xml',
-    `<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="${OFFICE_NS}" xmlns:text="${TEXT_NS}" xmlns:style="${STYLE_NS}" xmlns:fo="${FO_NS}" office:version="1.2"><office:body><office:text>${op('<text:span>Dear </text:span><text:span>{{Na</text:span><text:span>me}}</text:span>')}${op('{{Role}}')}${op('{{Country[Spain;;France;;Germany]}}')}${op('{{Notes|textarea}}')}</office:text></office:body></office:document-content>`,
+    `<?xml version="1.0" encoding="UTF-8"?><office:document-content xmlns:office="${OFFICE_NS}" xmlns:text="${TEXT_NS}" xmlns:style="${STYLE_NS}" xmlns:fo="${FO_NS}" office:version="1.2"><office:body><office:text>${op('<text:span>Hola </text:span><text:span>{{Na</text:span><text:span>me}}</text:span>')}${op('Su rol es {{Role}}.')}${op('País: {{Country[España;;Francia;;Alemania]}}')}${op('Notas: {{Notes|textarea}}')}</office:text></office:body></office:document-content>`,
   )
   zip.file(
     'styles.xml',
@@ -110,8 +110,8 @@ async function waitForServer(url, timeoutMs = 30000) {
 
 async function main() {
   await mkdir(outDir, { recursive: true })
-  const docxPath = path.join(outDir, 'sample-contract.docx')
-  const odtPath = path.join(outDir, 'sample-letter.odt')
+  const docxPath = path.join(outDir, 'sample-contract.en.docx')
+  const odtPath = path.join(outDir, 'sample-letter.es.odt')
   await makeDocx(docxPath)
   await makeOdt(odtPath)
 
@@ -149,7 +149,10 @@ async function main() {
     await page.goto(baseUrl)
     await page.screenshot({ path: path.join(outDir, '01-library.png'), fullPage: true })
 
-    await page.locator('input[type=file]').first().setInputFiles(docxPath)
+    await page.getByRole('button', { name: 'New form' }).click()
+    await page.getByLabel('Template 1').setInputFiles(docxPath)
+    await page.getByLabel('Template 2').setInputFiles(odtPath)
+    await page.getByRole('button', { name: 'Create form' }).click()
     await page.getByText('Detected fields').waitFor()
     await page.screenshot({ path: path.join(outDir, '02-detected.png'), fullPage: true })
 
@@ -162,49 +165,63 @@ async function main() {
     await page.screenshot({ path: path.join(outDir, '03-form.png'), fullPage: true })
 
     const downloadPromise = page.waitForEvent('download')
-    await page.getByRole('button', { name: 'Download filled document' }).click()
+    await page.getByRole('button', { name: 'Download filled documents' }).click()
     const download = await downloadPromise
-    const filledPath = path.join(outDir, 'contract-filled.docx')
+    const filledPath = path.join(outDir, 'filled-documents.zip')
     await download.saveAs(filledPath)
-    const filledZip = await JSZip.loadAsync(await readFile(filledPath))
-    const filledXml = await filledZip.file('word/document.xml').async('string')
-    if (filledXml.includes('{{')) {
-      throw new Error('DOCX still contains a placeholder after filling')
+    const archive = await JSZip.loadAsync(await readFile(filledPath))
+    const englishName = Object.keys(archive.files).find((name) =>
+      name.endsWith('-en-filled.docx'),
+    )
+    const spanishName = Object.keys(archive.files).find((name) =>
+      name.endsWith('-es-filled.odt'),
+    )
+    if (englishName === undefined || spanishName === undefined) {
+      throw new Error('The downloaded archive is missing one of the language documents')
     }
-    if (!filledXml.includes('Ada Lovelace') || !filledXml.includes('France')) {
-      throw new Error('DOCX is missing substituted values')
+
+    const englishDocx = await JSZip.loadAsync(
+      await archive.file(englishName).async('uint8array'),
+    )
+    const englishXml = await englishDocx.file('word/document.xml').async('string')
+    if (englishXml.includes('{{')) {
+      throw new Error('The English document still contains a placeholder')
+    }
+    if (!englishXml.includes('Ada Lovelace') || !englishXml.includes('France')) {
+      throw new Error('The English document is missing substituted values')
+    }
+
+    const spanishOdt = await JSZip.loadAsync(
+      await archive.file(spanishName).async('uint8array'),
+    )
+    const spanishXml = await spanishOdt.file('content.xml').async('string')
+    if (spanishXml.includes('{{')) {
+      throw new Error('The Spanish document still contains a placeholder')
+    }
+    if (!spanishXml.includes('Ada Lovelace') || !spanishXml.includes('Francia')) {
+      throw new Error('The Spanish document is missing localized values')
     }
 
     await page.getByRole('button', { name: 'Preview' }).click()
     await page.locator('iframe.preview-frame').waitFor()
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(2000)
     await page.screenshot({ path: path.join(outDir, '04-docx-preview.png'), fullPage: true })
     const docxNotice = await page.getByText('The preview could not be rendered').count()
     if (docxNotice > 0) {
       throw new Error('DOCX preview fell back to unavailable')
     }
 
-    await page.goto(baseUrl)
-    await page.locator('input[type=file]').first().setInputFiles(odtPath)
-    await page.getByText('Detected fields').waitFor()
-    await page.screenshot({ path: path.join(outDir, '05-odt-detected.png'), fullPage: true })
-    await page.getByRole('link', { name: 'Open form' }).click()
-    await page.getByLabel('Name').fill('Grace Hopper')
-    await page.getByLabel('Role').fill('Engineer')
-    await page.getByLabel('Country').selectOption('Germany')
-    await page.getByLabel('Notes').fill('ODT notes')
-    await page.getByLabel('Reference').fill('ODT-7')
-    await page.getByRole('button', { name: 'Preview' }).click()
+    await page.getByRole('tab', { name: 'es' }).click()
+    await page.waitForTimeout(5000)
     await page.locator('iframe.preview-frame').waitFor({ timeout: 45000 })
-    await page.waitForTimeout(4000)
-    await page.screenshot({ path: path.join(outDir, '06-odt-preview.png'), fullPage: true })
+    await page.screenshot({ path: path.join(outDir, '05-odt-preview.png'), fullPage: true })
     const odtNotice = await page.getByText('The preview could not be rendered').count()
     const odtReason = odtNotice > 0 ? await page.locator('.notice').innerText() : ''
 
     await page.goto(baseUrl)
     await page.getByText('sample-contract').waitFor()
     await page.screenshot({
-      path: path.join(outDir, '07-library-populated.png'),
+      path: path.join(outDir, '06-library-populated.png'),
       fullPage: true,
     })
 
@@ -220,7 +237,7 @@ async function main() {
         {
           ok: true,
           outDir,
-          docxDownload: filledPath,
+          zipDownload: filledPath,
           docxPreview: docxNotice === 0,
           odtPreview: odtNotice === 0,
           odtReason,

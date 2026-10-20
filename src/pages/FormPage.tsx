@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useServices } from '../app/services'
 import type { FormView } from '../domain/types'
+import { fieldByLabel, primaryVariantOf } from '../domain/variants'
 import { strings } from '../strings'
 import { bytesToBlob, downloadBlob } from '../ui/download'
 import { messageOf } from '../ui/errors'
@@ -76,6 +77,7 @@ export default function FormPage() {
   }
 
   if (detected) {
+    const primary = primaryVariantOf(form.definition)
     return (
       <section className="page">
         <div className="page-heading">
@@ -93,15 +95,47 @@ export default function FormPage() {
             </Link>
           </div>
         </div>
+
+        <div>
+          <h2>{strings.languageVariants}</h2>
+          <ul className="variant-list">
+            {form.definition.variants.map((variant) => (
+              <li key={variant.locale}>
+                <span className="badge">
+                  {variant.locale === 'und' ? 'single' : variant.locale}
+                </span>
+                <span className="muted">{variant.format}</span>
+                {variant.locale === form.primaryLocale && (
+                  <span className="muted">{strings.primaryLabel}</span>
+                )}
+                <code>/{variant.templateHash.slice(0, 12)}…</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <ul className="detected-list">
-          {form.definition.fields.map((field, index) => (
+          {primary.fields.map((field, index) => (
             <li key={`${field.label}-${index}`}>
               <div>
                 <strong>{field.label}</strong>
                 <span className="badge">{field.kind}</span>
               </div>
-              {field.options !== undefined && (
-                <p className="options">{field.options.join(' · ')}</p>
+              {field.kind === 'select' && (
+                <div className="option-pairing">
+                  {form.definition.variants.map((variant) => {
+                    const variantField = fieldByLabel(variant.fields, field.label)
+                    return (
+                      <div key={variant.locale}>
+                        <span className="badge">
+                          {variant.locale === 'und' ? 'single' : variant.locale}
+                        </span>{' '}
+                        {variantField?.options?.join(' · ')}
+                      </div>
+                    )
+                  })}
+                  <p className="hint">{strings.optionPairing}</p>
+                </div>
               )}
             </li>
           ))}
@@ -124,7 +158,15 @@ export default function FormPage() {
     setError(null)
     try {
       const filled = await forms.fill(route, answers)
-      downloadBlob(bytesToBlob(filled.bytes, filled.mimeType), filled.filename)
+      if (filled.zip !== null) {
+        downloadBlob(filled.zip.blob, filled.zip.filename)
+      } else if (filled.documents[0] !== undefined) {
+        const document = filled.documents[0]
+        downloadBlob(
+          bytesToBlob(document.bytes, document.mimeType),
+          document.filename,
+        )
+      }
       setDirty(false)
     } catch (fillError) {
       setError(
@@ -162,7 +204,13 @@ export default function FormPage() {
           <h1>{form.displayName}</h1>
           <p className="muted">{strings.fieldsOptional}</p>
         </div>
-        <span className="badge">{form.format}</span>
+        <div className="upload-actions">
+          {form.locales.map((locale) => (
+            <span className="badge" key={locale}>
+              {locale === 'und' ? 'single' : locale}
+            </span>
+          ))}
+        </div>
       </div>
 
       {error !== null && (
@@ -178,7 +226,7 @@ export default function FormPage() {
           void handleDownload()
         }}
       >
-        {form.definition.fields.map((field, index) => {
+        {primaryVariantOf(form.definition).fields.map((field, index) => {
           const id = `field-${index}`
           const value = answers.get(field.label) ?? ''
           return (
@@ -221,7 +269,7 @@ export default function FormPage() {
 
         <div className="form-actions">
           <button type="submit" disabled={busy}>
-            {strings.download}
+            {form.variantCount > 1 ? strings.downloadDocuments : strings.download}
           </button>
           <button type="button" className="secondary" onClick={handlePreview} disabled={busy}>
             {strings.preview}

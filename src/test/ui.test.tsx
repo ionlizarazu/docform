@@ -14,8 +14,10 @@ import { previewStorageKey } from '../pages/previewStorage'
 const summary: FormSummary = {
   route: 'abc123',
   displayName: 'Employment contract',
-  originalFilename: 'contract.docx',
-  format: 'docx',
+  originalFilename: 'contract.en.docx',
+  primaryLocale: 'en',
+  locales: ['en', 'es'],
+  variantCount: 2,
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
@@ -23,13 +25,51 @@ const view: FormView = {
   ...summary,
   definition: {
     route: 'abc123',
-    format: 'docx',
-    fields: [
-      { label: 'Name', kind: 'text' },
-      { label: 'Bio', kind: 'textarea' },
-      { label: 'Country', kind: 'select', options: ['Spain', 'France'] },
+    primaryLocale: 'en',
+    variants: [
+      {
+        locale: 'en',
+        format: 'docx',
+        templateHash: 'a'.repeat(64),
+        fields: [
+          { label: 'Name', kind: 'text' },
+          { label: 'Bio', kind: 'textarea' },
+          { label: 'Country', kind: 'select', options: ['Spain', 'France'] },
+        ],
+      },
+      {
+        locale: 'es',
+        format: 'odt',
+        templateHash: 'b'.repeat(64),
+        fields: [
+          { label: 'Name', kind: 'text' },
+          { label: 'Bio', kind: 'textarea' },
+          { label: 'Country', kind: 'select', options: ['España', 'Francia'] },
+        ],
+      },
     ],
   },
+}
+
+const filledSet = {
+  documents: [
+    {
+      bytes: new Uint8Array([1]),
+      filename: 'contract-en-filled.docx',
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      format: 'docx' as const,
+      locale: 'en',
+    },
+    {
+      bytes: new Uint8Array([2]),
+      filename: 'contract-es-filled.odt',
+      mimeType: 'application/vnd.oasis.opendocument.text',
+      format: 'odt' as const,
+      locale: 'es',
+    },
+  ],
+  zip: { blob: new Blob(['zip']), filename: 'contract.zip' },
 }
 
 const fakePreview: PreviewRenderer = {
@@ -39,16 +79,12 @@ const fakePreview: PreviewRenderer = {
 function makeForms(overrides: Partial<FormsApi> = {}): FormsApi {
   const base: FormsApi = {
     ingest: async () => ({ ok: false, errors: [] }),
+    ingestVariants: async () => ({ ok: false, errors: [] }),
     list: async () => [],
     get: async () => null,
     rename: async () => undefined,
     remove: async () => undefined,
-    fill: async () => ({
-      bytes: new Uint8Array([1]),
-      filename: 'contract-filled.docx',
-      mimeType:
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    }),
+    fill: async () => filledSet,
     exportPackage: async () => ({
       blob: new Blob(['{}']),
       filename: 'contract.formpack.json',
@@ -83,8 +119,28 @@ describe('LibraryPage', () => {
     )
 
     expect(await screen.findByText('Employment contract')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /upload template/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /new form/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /import package/i })).toBeInTheDocument()
+    expect(screen.getByText('2 languages')).toBeInTheDocument()
+  })
+
+  it('opens the bilingual new-form panel', async () => {
+    render(
+      <MemoryRouter>
+        <ServicesProvider
+          value={{ forms: makeForms(), preview: fakePreview }}
+        >
+          <LibraryPage />
+        </ServicesProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: /new form/i }))
+    expect(screen.getByLabelText('Template 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('Template 2')).toBeInTheDocument()
+    expect(screen.getByLabelText('Locale 1')).toHaveValue('en')
+    expect(screen.getByLabelText('Locale 2')).toHaveValue('es')
+    expect(screen.getByRole('button', { name: /create form/i })).toBeInTheDocument()
   })
 })
 
@@ -108,19 +164,14 @@ describe('FormPage', () => {
   })
 
   it('fills answers and downloads the filled document', async () => {
-    const fill = vi.fn<FormsApi['fill']>(async () => ({
-      bytes: new Uint8Array([1]),
-      filename: 'contract-filled.docx',
-      mimeType:
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    }))
+    const fill = vi.fn<FormsApi['fill']>(async () => filledSet)
     renderFormPage(makeForms({ get: async () => view, fill }))
 
     await userEvent.type(await screen.findByLabelText('Name'), 'Ada')
     await userEvent.type(screen.getByLabelText('Bio'), 'Hello')
     await userEvent.selectOptions(screen.getByLabelText('Country'), 'France')
     await userEvent.click(
-      screen.getByRole('button', { name: /download filled document/i }),
+      screen.getByRole('button', { name: /download filled documents/i }),
     )
 
     await waitFor(() => expect(fill).toHaveBeenCalledTimes(1))
@@ -135,6 +186,7 @@ describe('FormPage', () => {
 
     expect(await screen.findByText('Detected fields')).toBeInTheDocument()
     expect(screen.getByText('Spain · France')).toBeInTheDocument()
+    expect(screen.getByText('España · Francia')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open form/i })).toBeInTheDocument()
   })
 
