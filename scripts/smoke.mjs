@@ -295,7 +295,12 @@ async function main() {
     const formUrl = page.url().split('?')[0]
     expectedFallbackUrl = formUrl
     allowDocument404 = true
-    await page.goto(formUrl)
+    const deepLinkResponse = await page.goto(formUrl)
+    if (pagesMode && deepLinkResponse?.status() !== 404) {
+      throw new Error(
+        `The deep-link reload did not exercise the Pages 404 fallback (status ${deepLinkResponse?.status()}).`,
+      )
+    }
     await page.getByLabel('Name').waitFor()
     await page.waitForTimeout(500)
     allowDocument404 = false
