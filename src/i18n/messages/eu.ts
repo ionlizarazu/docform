@@ -253,6 +253,9 @@ export const eu: Messages = {
       if (error.detail === 'kind-mismatch') {
         return `"${p.label ?? error.label ?? ''}" eremua "${kindName(p.primaryKind)}" da "${p.primaryLocale ?? ''}" hizkuntzan, baina "${kindName(p.kind)}" "${p.locale ?? ''}" hizkuntzan.`
       }
+      if (error.detail === 'missing-field') {
+        return `"${p.label ?? error.label ?? ''}" eremua falta da aldaera nagusian.`
+      }
       return 'Hizkuntza-aldaerek ez dituzte eremu berberak adierazten.'
     },
     'option-count-mismatch': (error) => {

@@ -637,7 +637,11 @@ export class TemplateForms implements FormsApi {
   async fill(route: string, answers: Answers): Promise<FilledDocumentSet> {
     const form = await this.store.get(route)
     if (form === undefined) {
-      throw new TemplateFormError('not-found', 'This form is not stored on this device.')
+      throw new TemplateFormError(
+        'not-found',
+        'This form is not stored on this device.',
+        { detail: 'not-found' },
+      )
     }
 
     const primary = primaryVariantOf(form.definition)
@@ -651,6 +655,10 @@ export class TemplateForms implements FormsApi {
         throw new TemplateFormError(
           'invalid-answer',
           `"${answer}" is not an option for "${field.label}".`,
+          {
+            detail: 'invalid-answer',
+            params: { label: field.label, answer },
+          },
         )
       }
     }
@@ -664,6 +672,10 @@ export class TemplateForms implements FormsApi {
         throw new TemplateFormError(
           'invalid-format',
           `The template for locale "${variant.locale}" is missing.`,
+          {
+            detail: 'missing-template',
+            params: { locale: variant.locale },
+          },
         )
       }
 
@@ -679,6 +691,10 @@ export class TemplateForms implements FormsApi {
           throw new TemplateFormError(
             'variant-mismatch',
             `The field "${field.label}" is missing from the primary variant.`,
+            {
+              detail: 'missing-field',
+              params: { label: field.label },
+            },
           )
         }
 
@@ -693,6 +709,10 @@ export class TemplateForms implements FormsApi {
           throw new TemplateFormError(
             'invalid-answer',
             `"${selected}" is not an option for "${field.label}".`,
+            {
+              detail: 'invalid-answer',
+              params: { label: field.label, answer: selected },
+            },
           )
         }
 
@@ -701,6 +721,17 @@ export class TemplateForms implements FormsApi {
           throw new TemplateFormError(
             'option-count-mismatch',
             `The select field "${field.label}" does not have an option at position ${index + 1} in "${variant.locale}".`,
+            {
+              detail: 'option-count-mismatch',
+              params: {
+                label: field.label,
+                locale: variant.locale,
+                primaryLocale: primary.locale,
+                primaryCount: primaryField.options?.length ?? 0,
+                variantCount: field.options?.length ?? 0,
+                index,
+              },
+            },
           )
         }
         variantAnswers.set(field.label, option)

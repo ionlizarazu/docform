@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useServices } from '../app/services'
 import type { FilledDocument, FormView } from '../domain/types'
 import { useI18n } from '../i18n/context'
+import { localizeError } from '../i18n/errors'
 import { previewPrintMessage } from '../preview/renderer'
 import type { PreviewResult } from '../preview/types'
 import { bytesToBlob, downloadBlob } from '../ui/download'
@@ -19,7 +20,7 @@ export default function PreviewPage() {
   const [activeLocale, setActiveLocale] = useState<string | null>(null)
   const [results, setResults] = useState<Map<string, PreviewResult>>(() => new Map())
   const [loadingLocale, setLoadingLocale] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<unknown | null>(null)
   const [noAnswers, setNoAnswers] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -38,7 +39,7 @@ export default function PreviewPage() {
         setActiveLocale(null)
         setResults(new Map())
         setLoadingLocale(null)
-        setFailed(false)
+        setFailure(null)
         setNoAnswers(false)
 
         const loaded = await forms.get(route)
@@ -65,9 +66,9 @@ export default function PreviewPage() {
         setDocuments(set.documents)
         setZip(set.zip)
         setActiveLocale(set.documents[0]?.locale ?? null)
-      } catch {
+      } catch (previewError) {
         if (!cancelled) {
-          setFailed(true)
+          setFailure(previewError)
         }
       }
     }
@@ -128,11 +129,13 @@ export default function PreviewPage() {
     }
   }, [activeLocale, documents, messages.previewUnavailable, preview, results])
 
-  if (failed && form === undefined) {
+  if (failure !== null && form === undefined) {
     return (
       <section className="page">
         <h1>{messages.previewUnavailable}</h1>
-        <p className="muted">{messages.errorDetail}</p>
+        <p className="muted">
+          {localizeError(failure, messages, messages.errorDetail)}
+        </p>
         <Link className="button-link" to={`/f/${route}`}>
           {messages.backToForm}
         </Link>
@@ -230,14 +233,14 @@ export default function PreviewPage() {
         </div>
       )}
 
-      {failed && (
+      {failure !== null && (
         <div className="errors" role="alert">
           <strong>{messages.errorsTitle}</strong>
-          <p>{messages.errorDetail}</p>
+          <p>{localizeError(failure, messages, messages.errorDetail)}</p>
         </div>
       )}
 
-      {activeResult === null && !failed && (
+      {activeResult === null && failure === null && (
         <p className="muted">
           {loadingLocale === null
             ? messages.loading

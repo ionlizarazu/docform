@@ -252,6 +252,9 @@ export const es: Messages = {
       if (error.detail === 'kind-mismatch') {
         return `El campo "${p.label ?? error.label ?? ''}" es "${kindName(p.primaryKind)}" en "${p.primaryLocale ?? ''}" pero "${kindName(p.kind)}" en "${p.locale ?? ''}".`
       }
+      if (error.detail === 'missing-field') {
+        return `Falta el campo "${p.label ?? error.label ?? ''}" en la variante principal.`
+      }
       return 'Las variantes de idioma no declaran los mismos campos.'
     },
     'option-count-mismatch': (error) => {

@@ -325,13 +325,18 @@ describe('filled documents', () => {
 
     await expect(
       forms.fill(ingested.route, new Map([['Country', 'Mars']])),
-    ).rejects.toMatchObject({ code: 'invalid-answer' })
+    ).rejects.toMatchObject({
+      code: 'invalid-answer',
+      detail: 'invalid-answer',
+      params: { label: 'Country', answer: 'Mars' },
+    })
   })
 
   it('reports a missing route when filling', async () => {
     const forms = makeForms()
     await expect(forms.fill('missing', new Map())).rejects.toMatchObject({
       code: 'not-found',
+      detail: 'not-found',
     })
   })
 })

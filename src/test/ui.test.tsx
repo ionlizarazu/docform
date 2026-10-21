@@ -427,6 +427,54 @@ describe('FormPage', () => {
       await screen.findByText('Formulario no encontrado en este dispositivo'),
     ).toBeInTheDocument()
   })
+
+  it('localizes form load failures', async () => {
+    renderFormPage(
+      makeForms({
+        get: async () => {
+          throw new TemplateFormError('not-found', 'raw diagnostic', {
+            detail: 'not-found',
+          })
+        },
+      }),
+      '/f/abc123',
+      'es',
+    )
+
+    expect(
+      await screen.findByText('No se pudo cargar este formulario.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Este formulario no está guardado en este dispositivo.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
+  })
+
+  it('localizes form fill failures', async () => {
+    const fill = vi.fn<FormsApi['fill']>(async () => {
+      throw new TemplateFormError('invalid-answer', 'raw diagnostic', {
+        detail: 'invalid-answer',
+        params: { label: 'Country', answer: 'Nope' },
+      })
+    })
+    renderFormPage(
+      makeForms({ get: async () => view, fill }),
+      '/f/abc123',
+      'es',
+    )
+
+    await userEvent.type(await screen.findByLabelText('Name'), 'Ada')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Descargar documentos rellenos' }),
+    )
+
+    expect(
+      await screen.findByText('"Nope" no es una opción de "Country".'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
+  })
 })
 
 describe('PreviewPage', () => {
@@ -584,6 +632,44 @@ describe('PreviewPage', () => {
     expect(
       screen.getByRole('button', { name: 'Deskargatu betetako dokumentuak' }),
     ).toBeInTheDocument()
+  })
+
+  it('localizes preview fill failures', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const fill = vi.fn<FormsApi['fill']>(async () => {
+      throw new TemplateFormError('invalid-answer', 'raw diagnostic', {
+        detail: 'invalid-answer',
+        params: { label: 'Name', answer: 'x' },
+      })
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="eu">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ get: async () => view, fill }),
+              preview: fakePreview,
+            }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText('Ezin izan da ekintza osatu'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('"x" ez da "Name" eremuko aukera bat.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
   })
 
   it('localizes the no-answers preview state', async () => {

@@ -4,8 +4,8 @@ import { useServices } from '../app/services'
 import type { FormView } from '../domain/types'
 import { fieldByLabel, primaryVariantOf } from '../domain/variants'
 import { useI18n } from '../i18n/context'
+import { localizeError } from '../i18n/errors'
 import { bytesToBlob, downloadBlob } from '../ui/download'
-import { messageOf } from '../ui/errors'
 import NotFoundPage from './NotFoundPage'
 import { previewStorageKey } from './previewStorage'
 
@@ -20,8 +20,8 @@ export default function FormPage() {
   const [answers, setAnswers] = useState<Map<string, string>>(() => new Map())
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [error, setError] = useState<unknown | null>(null)
+  const [loadError, setLoadError] = useState<unknown | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +37,7 @@ export default function FormPage() {
       })
       .catch((loadFailure) => {
         if (!cancelled) {
-          setLoadError(messageOf(loadFailure, ''))
+          setLoadError(loadFailure)
         }
       })
     return () => {
@@ -61,7 +61,9 @@ export default function FormPage() {
     return (
       <section className="page">
         <h1>{messages.loadFailed}</h1>
-        {loadError !== '' && <p className="muted">{loadError}</p>}
+        <p className="muted">
+          {localizeError(loadError, messages, messages.errorDetail)}
+        </p>
         <Link className="button-link" to="/">
           {messages.backToLibrary}
         </Link>
@@ -185,9 +187,7 @@ export default function FormPage() {
       }
       setDirty(false)
     } catch (fillError) {
-      setError(
-        fillError instanceof Error ? fillError.message : messages.errorDetail,
-      )
+      setError(fillError)
     } finally {
       setBusy(false)
     }
@@ -234,7 +234,7 @@ export default function FormPage() {
       {error !== null && (
         <div className="errors" role="alert">
           <strong>{messages.errorsTitle}</strong>
-          <p>{error}</p>
+          <p>{localizeError(error, messages, messages.errorDetail)}</p>
         </div>
       )}
 
