@@ -167,7 +167,11 @@ function parsePackageV1(candidate: Record<string, unknown>): FormPackageV1 {
     typeof candidate.definition !== 'object' ||
     candidate.definition === null
   ) {
-    throw new TemplateFormError('invalid-package', 'The form package manifest is incomplete.')
+    throw new TemplateFormError(
+      'invalid-package',
+      'The form package manifest is incomplete.',
+      { detail: 'incomplete' },
+    )
   }
 
   const definition = candidate.definition as Record<string, unknown>
@@ -180,6 +184,7 @@ function parsePackageV1(candidate: Record<string, unknown>): FormPackageV1 {
     throw new TemplateFormError(
       'invalid-package',
       'The form package definition does not match its template.',
+      { detail: 'definition-mismatch' },
     )
   }
 
@@ -188,6 +193,7 @@ function parsePackageV1(candidate: Record<string, unknown>): FormPackageV1 {
     throw new TemplateFormError(
       'invalid-package',
       'The form package definition contains duplicate labels.',
+      { detail: 'duplicate-labels' },
     )
   }
 
@@ -211,7 +217,11 @@ function parsePackageV2(candidate: Record<string, unknown>): FormPackageV2 {
     candidate.definition.primaryLocale !== candidate.primaryLocale ||
     !Array.isArray(candidate.variants)
   ) {
-    throw new TemplateFormError('invalid-package', 'The form package manifest is incomplete.')
+    throw new TemplateFormError(
+      'invalid-package',
+      'The form package manifest is incomplete.',
+      { detail: 'incomplete' },
+    )
   }
 
   const definition = candidate.definition
@@ -233,12 +243,17 @@ function parsePackageV2(candidate: Record<string, unknown>): FormPackageV2 {
       throw new TemplateFormError(
         'invalid-package',
         'A package variant is missing its locale, format, or template.',
+        { detail: 'variant-incomplete' },
       )
     }
     if (packageLocales.has(variant.locale)) {
       throw new TemplateFormError(
         'invalid-package',
         `The package contains the locale "${variant.locale}" more than once.`,
+        {
+          detail: 'duplicate-locale',
+          params: { locale: variant.locale },
+        },
       )
     }
     packageLocales.add(variant.locale)
@@ -250,6 +265,10 @@ function parsePackageV2(candidate: Record<string, unknown>): FormPackageV2 {
       throw new TemplateFormError(
         'invalid-package',
         `The package variant "${variant.locale}" does not match the form definition.`,
+        {
+          detail: 'variant-mismatch',
+          params: { locale: variant.locale },
+        },
       )
     }
   }
@@ -261,6 +280,7 @@ function parsePackageV2(candidate: Record<string, unknown>): FormPackageV2 {
     throw new TemplateFormError(
       'invalid-package',
       'The package variants do not match the form definition locales.',
+      { detail: 'locale-set-mismatch' },
     )
   }
 
@@ -272,11 +292,19 @@ function parsePackage(text: string): FormPackage {
   try {
     value = JSON.parse(text)
   } catch {
-    throw new TemplateFormError('invalid-package', 'The form package is not valid JSON.')
+    throw new TemplateFormError(
+      'invalid-package',
+      'The form package is not valid JSON.',
+      { detail: 'not-json' },
+    )
   }
 
   if (typeof value !== 'object' || value === null) {
-    throw new TemplateFormError('invalid-package', 'The form package is missing its manifest.')
+    throw new TemplateFormError(
+      'invalid-package',
+      'The form package is missing its manifest.',
+      { detail: 'missing-manifest' },
+    )
   }
 
   const candidate = value as Record<string, unknown>
@@ -289,6 +317,7 @@ function parsePackage(text: string): FormPackage {
   throw new TemplateFormError(
     'invalid-package',
     'The form package uses an unsupported manifest version.',
+    { detail: 'unsupported-version' },
   )
 }
 
@@ -584,11 +613,19 @@ export class TemplateForms implements FormsApi {
   async rename(route: string, displayName: string): Promise<void> {
     const trimmed = displayName.trim()
     if (trimmed === '') {
-      throw new TemplateFormError('invalid-package', 'A display name cannot be empty.')
+      throw new TemplateFormError(
+        'invalid-package',
+        'A display name cannot be empty.',
+        { detail: 'empty-display-name' },
+      )
     }
     const form = await this.store.get(route)
     if (form === undefined) {
-      throw new TemplateFormError('not-found', 'This form is not stored on this device.')
+      throw new TemplateFormError(
+        'not-found',
+        'This form is not stored on this device.',
+        { detail: 'not-found' },
+      )
     }
     await this.store.put({ ...form, displayName: trimmed })
   }
@@ -706,7 +743,11 @@ export class TemplateForms implements FormsApi {
   async exportPackage(route: string): Promise<{ blob: Blob; filename: string }> {
     const form = await this.store.get(route)
     if (form === undefined) {
-      throw new TemplateFormError('not-found', 'This form is not stored on this device.')
+      throw new TemplateFormError(
+        'not-found',
+        'This form is not stored on this device.',
+        { detail: 'not-found' },
+      )
     }
 
     const variants = form.definition.variants.map((variant) => {
@@ -715,6 +756,10 @@ export class TemplateForms implements FormsApi {
         throw new TemplateFormError(
           'invalid-format',
           `The template for locale "${variant.locale}" is missing.`,
+          {
+            detail: 'missing-template',
+            params: { locale: variant.locale },
+          },
         )
       }
       return {
@@ -745,7 +790,11 @@ export class TemplateForms implements FormsApi {
 
   async importPackage(file: UploadFile): Promise<IngestResult> {
     if (typeof file.text !== 'function') {
-      return failure('invalid-package', 'The package could not be read.')
+      return failure(
+        'invalid-package',
+        'The package could not be read.',
+        'unreadable-package',
+      )
     }
 
     let packageValue: FormPackage
@@ -753,9 +802,18 @@ export class TemplateForms implements FormsApi {
       packageValue = parsePackage(await file.text())
     } catch (error) {
       if (error instanceof TemplateFormError) {
-        return failure(error.code, error.message)
+        return failure(
+          error.code,
+          error.message,
+          error.detail,
+          error.params,
+        )
       }
-      return failure('invalid-package', 'The package could not be read.')
+      return failure(
+        'invalid-package',
+        'The package could not be read.',
+        'unreadable-package',
+      )
     }
 
     if (packageValue.version === 1) {
@@ -769,12 +827,18 @@ export class TemplateForms implements FormsApi {
     try {
       bytes = base64ToBytes(packageValue.templateBase64)
     } catch {
-      return failure('invalid-package', 'The package template is not valid base64.')
+      return failure(
+        'invalid-package',
+        'The package template is not valid base64.',
+        'invalid-base64',
+      )
     }
     if (bytes.byteLength > MAX_UPLOAD_BYTES) {
       return failure(
         'too-large',
         `The package is larger than ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
+        'too-large',
+        { maxMb: Math.round(MAX_UPLOAD_BYTES / (1024 * 1024)) },
       )
     }
 
@@ -783,6 +847,7 @@ export class TemplateForms implements FormsApi {
       return failure(
         'invalid-package',
         'The package route does not match its template contents.',
+        'route-mismatch',
       )
     }
 
@@ -790,12 +855,17 @@ export class TemplateForms implements FormsApi {
     try {
       detectedFormat = await detectTemplateFormat(bytes)
     } catch {
-      return failure('invalid-package', 'The package template is not a DOCX or ODT file.')
+      return failure(
+        'invalid-package',
+        'The package template is not a DOCX or ODT file.',
+        'wrong-format',
+      )
     }
     if (detectedFormat !== packageValue.format) {
       return failure(
         'invalid-package',
         'The package template is not the declared DOCX or ODT format.',
+        'wrong-format',
       )
     }
 
@@ -866,6 +936,8 @@ export class TemplateForms implements FormsApi {
         return failure(
           'invalid-package',
           `The package variant "${packageVariant.locale}" has no form definition.`,
+          'variant-missing',
+          { locale: packageVariant.locale },
         )
       }
 
@@ -873,12 +945,22 @@ export class TemplateForms implements FormsApi {
       try {
         bytes = base64ToBytes(packageVariant.templateBase64)
       } catch {
-        return failure('invalid-package', 'A package template is not valid base64.')
+        return failure(
+          'invalid-package',
+          'A package template is not valid base64.',
+          'invalid-base64',
+          { locale: packageVariant.locale },
+        )
       }
       if (bytes.byteLength > MAX_UPLOAD_BYTES) {
         return failure(
           'too-large',
           `A package template is larger than ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
+          'too-large',
+          {
+            maxMb: Math.round(MAX_UPLOAD_BYTES / (1024 * 1024)),
+            locale: packageVariant.locale,
+          },
         )
       }
 
@@ -889,12 +971,16 @@ export class TemplateForms implements FormsApi {
         return failure(
           'invalid-package',
           `The package template for "${packageVariant.locale}" is not a DOCX or ODT file.`,
+          'wrong-format',
+          { locale: packageVariant.locale },
         )
       }
       if (detectedFormat !== packageVariant.format || detectedFormat !== declared.format) {
         return failure(
           'invalid-package',
           `The package template for "${packageVariant.locale}" does not match its declared format.`,
+          'wrong-format',
+          { locale: packageVariant.locale },
         )
       }
 
@@ -903,6 +989,8 @@ export class TemplateForms implements FormsApi {
         return failure(
           'invalid-package',
           `The package template for "${packageVariant.locale}" does not match its recorded hash.`,
+          'hash-mismatch',
+          { locale: packageVariant.locale },
         )
       }
 
@@ -921,6 +1009,7 @@ export class TemplateForms implements FormsApi {
       return failure(
         'invalid-package',
         'The package variants do not match the form definition locales.',
+        'locale-set-mismatch',
       )
     }
 
@@ -940,6 +1029,7 @@ export class TemplateForms implements FormsApi {
       return failure(
         'invalid-package',
         'The package route does not match its variant set.',
+        'route-mismatch',
       )
     }
 

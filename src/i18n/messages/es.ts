@@ -126,6 +126,8 @@ export const es: Messages = {
           return 'No se pudo leer la plantilla.'
         case 'format-mismatch':
           return 'El formato guardado no coincide con el paquete de la plantilla.'
+        case 'missing-template':
+          return `Falta la plantilla del idioma "${p.locale ?? ''}".`
         case 'unreadable-file':
           return `No se pudo leer "${p.path ?? error.location ?? ''}".`
         default:
@@ -181,7 +183,49 @@ export const es: Messages = {
     'not-found': () => 'Este formulario no está guardado en este dispositivo.',
     'invalid-answer': (error) =>
       `"${params(error).answer ?? ''}" no es una opción de "${params(error).label ?? error.label ?? ''}".`,
-    'invalid-package': () => 'El paquete del formulario no es válido.',
+    'invalid-package': (error) => {
+      const p = params(error)
+      switch (error.detail) {
+        case 'not-json':
+          return 'El paquete del formulario no es JSON válido.'
+        case 'missing-manifest':
+          return 'Al paquete del formulario le falta el manifiesto.'
+        case 'unsupported-version':
+          return 'El paquete del formulario usa una versión de manifiesto no compatible.'
+        case 'incomplete':
+          return 'El manifiesto del paquete del formulario está incompleto.'
+        case 'definition-mismatch':
+          return 'La definición del paquete no coincide con su plantilla.'
+        case 'duplicate-labels':
+          return 'La definición del paquete contiene etiquetas duplicadas.'
+        case 'variant-incomplete':
+          return 'A una variante del paquete le falta el idioma, el formato o la plantilla.'
+        case 'duplicate-locale':
+          return `El paquete contiene el idioma "${p.locale ?? ''}" más de una vez.`
+        case 'variant-mismatch':
+          return `La variante "${p.locale ?? ''}" del paquete no coincide con la definición del formulario.`
+        case 'locale-set-mismatch':
+          return 'Las variantes del paquete no coinciden con los idiomas de la definición del formulario.'
+        case 'variant-missing':
+          return `La variante "${p.locale ?? ''}" del paquete no tiene definición de formulario.`
+        case 'invalid-base64':
+          return 'La plantilla del paquete no es base64 válido.'
+        case 'wrong-format':
+          return p.locale === undefined
+            ? 'La plantilla del paquete no es un archivo DOCX u ODT válido o no coincide con el formato declarado.'
+            : `La plantilla del idioma "${p.locale}" del paquete no es un archivo DOCX u ODT válido o no coincide con el formato declarado.`
+        case 'hash-mismatch':
+          return `La plantilla del idioma "${p.locale ?? ''}" del paquete no coincide con el hash registrado.`
+        case 'route-mismatch':
+          return 'La ruta del paquete no coincide con su contenido.'
+        case 'unreadable-package':
+          return 'No se pudo leer el paquete.'
+        case 'empty-display-name':
+          return 'El nombre del formulario no puede estar vacío.'
+        default:
+          return 'El paquete del formulario no es válido.'
+      }
+    },
     'no-variants': () => 'Añade al menos una plantilla de idioma.',
     'invalid-locale': (error) =>
       error.detail === 'multiple-primary'

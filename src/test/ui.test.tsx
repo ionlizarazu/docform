@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import { ServicesProvider } from '../app/ServicesProvider'
 import type { FormsApi } from '../app/TemplateForms'
+import { TemplateFormError } from '../domain/types'
 import type { FormSummary, FormView } from '../domain/types'
 import { I18nProvider } from '../i18n/I18nProvider'
 import { INTERFACE_LOCALE_STORAGE_KEY } from '../i18n/locales'
@@ -166,6 +167,112 @@ describe('LibraryPage', () => {
     expect(screen.getByLabelText('Document language 1')).toHaveValue('en')
     expect(screen.getByLabelText('Document language 2')).toHaveValue('es')
     expect(screen.getByRole('button', { name: /create form/i })).toBeInTheDocument()
+  })
+
+  it('localizes package import failures and hides the raw diagnostic', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{
+              forms: makeForms({
+                importPackage: async () => ({
+                  ok: false,
+                  errors: [
+                    {
+                      code: 'invalid-package',
+                      detail: 'route-mismatch',
+                      message: 'raw diagnostic',
+                    },
+                  ],
+                }),
+              }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const input = container.querySelector(
+      'input[type=file][accept*="json"]',
+    ) as HTMLInputElement
+    await userEvent.upload(
+      input,
+      new File(['{}'], 'bad.formpack.json', { type: 'application/json' }),
+    )
+
+    expect(
+      await screen.findByText(
+        'La ruta del paquete no coincide con su contenido.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
+  })
+
+  it('localizes library list failures', async () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{
+              forms: makeForms({
+                list: async () => {
+                  throw new Error('raw diagnostic')
+                },
+              }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText('Inténtalo de nuevo.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
+  })
+
+  it('localizes rename failures in Basque', async () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="eu">
+          <ServicesProvider
+            value={{
+              forms: makeForms({
+                list: async () => [summary],
+                rename: async () => {
+                  throw new TemplateFormError('not-found', 'raw diagnostic')
+                },
+              }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Izena aldatu' }),
+    )
+    const name = screen.getByLabelText('Formularioaren izena')
+    await userEvent.clear(name)
+    await userEvent.type(name, 'Berria')
+    await userEvent.click(screen.getByRole('button', { name: 'Gorde' }))
+
+    expect(
+      await screen.findByText(
+        'Formulario hau ez dago gailu honetan gordeta.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
   })
 })
 

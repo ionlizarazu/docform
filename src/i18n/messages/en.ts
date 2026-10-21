@@ -120,6 +120,8 @@ export const en: Messages = {
           return 'The template could not be read.'
         case 'format-mismatch':
           return 'The stored format does not match the template package.'
+        case 'missing-template':
+          return `The template for "${p.locale ?? ''}" is missing.`
         case 'unreadable-file':
           return `"${p.path ?? error.location ?? ''}" could not be read.`
         default:
@@ -175,7 +177,49 @@ export const en: Messages = {
     'not-found': () => 'This form is not stored on this device.',
     'invalid-answer': (error) =>
       `"${params(error).answer ?? ''}" is not an option for "${params(error).label ?? error.label ?? ''}".`,
-    'invalid-package': () => 'The form package is invalid.',
+    'invalid-package': (error) => {
+      const p = params(error)
+      switch (error.detail) {
+        case 'not-json':
+          return 'The form package is not valid JSON.'
+        case 'missing-manifest':
+          return 'The form package is missing its manifest.'
+        case 'unsupported-version':
+          return 'The form package uses an unsupported manifest version.'
+        case 'incomplete':
+          return 'The form package manifest is incomplete.'
+        case 'definition-mismatch':
+          return 'The form package definition does not match its template.'
+        case 'duplicate-labels':
+          return 'The form package definition contains duplicate labels.'
+        case 'variant-incomplete':
+          return 'A package variant is missing its locale, format, or template.'
+        case 'duplicate-locale':
+          return `The package contains the locale "${p.locale ?? ''}" more than once.`
+        case 'variant-mismatch':
+          return `The package variant "${p.locale ?? ''}" does not match the form definition.`
+        case 'locale-set-mismatch':
+          return 'The package variants do not match the form definition locales.'
+        case 'variant-missing':
+          return `The package variant "${p.locale ?? ''}" has no form definition.`
+        case 'invalid-base64':
+          return 'The package template is not valid base64.'
+        case 'wrong-format':
+          return p.locale === undefined
+            ? 'The package template is not a valid DOCX or ODT file, or does not match its declared format.'
+            : `The package template for "${p.locale}" is not a valid DOCX or ODT file, or does not match its declared format.`
+        case 'hash-mismatch':
+          return `The package template for "${p.locale ?? ''}" does not match its recorded hash.`
+        case 'route-mismatch':
+          return 'The package route does not match its contents.'
+        case 'unreadable-package':
+          return 'The package could not be read.'
+        case 'empty-display-name':
+          return 'A display name cannot be empty.'
+        default:
+          return 'The form package is invalid.'
+      }
+    },
     'no-variants': () => 'Add at least one language template.',
     'invalid-locale': (error) =>
       error.detail === 'multiple-primary'

@@ -127,6 +127,8 @@ export const eu: Messages = {
           return 'Ezin izan da txantiloia irakurri.'
         case 'format-mismatch':
           return 'Gordetako formatua ez dator bat txantiloiaren paketearekin.'
+        case 'missing-template':
+          return `"${p.locale ?? ''}" hizkuntzako txantiloia falta da.`
         case 'unreadable-file':
           return `Ezin izan da "${p.path ?? error.location ?? ''}" irakurri.`
         default:
@@ -182,7 +184,49 @@ export const eu: Messages = {
     'not-found': () => 'Formulario hau ez dago gailu honetan gordeta.',
     'invalid-answer': (error) =>
       `"${params(error).answer ?? ''}" ez da "${params(error).label ?? error.label ?? ''}" eremuko aukera bat.`,
-    'invalid-package': () => 'Formularioaren paketea ez da baliozkoa.',
+    'invalid-package': (error) => {
+      const p = params(error)
+      switch (error.detail) {
+        case 'not-json':
+          return 'Formularioaren paketea ez da JSON baliozkoa.'
+        case 'missing-manifest':
+          return 'Formularioaren paketeari manifestua falta zaio.'
+        case 'unsupported-version':
+          return 'Formularioaren paketeak manifestu-bertsio bateraezina erabiltzen du.'
+        case 'incomplete':
+          return 'Formularioaren paketearen manifestua osatu gabe dago.'
+        case 'definition-mismatch':
+          return 'Paketearen definizioa ez dator bat bere txantiloiarekin.'
+        case 'duplicate-labels':
+          return 'Paketearen definizioak etiketa bikoiztuak ditu.'
+        case 'variant-incomplete':
+          return 'Paketeko aldaera bati hizkuntza, formatua edo txantiloia falta zaio.'
+        case 'duplicate-locale':
+          return `Paketeak "${p.locale ?? ''}" hizkuntza behin baino gehiagotan dauka.`
+        case 'variant-mismatch':
+          return `Paketeko "${p.locale ?? ''}" aldaera ez dator bat formularioaren definizioarekin.`
+        case 'locale-set-mismatch':
+          return 'Paketeko aldaerak ez datoz bat formularioaren definizioko hizkuntzekin.'
+        case 'variant-missing':
+          return `Paketeko "${p.locale ?? ''}" aldaerak ez du formulario-definiziorik.`
+        case 'invalid-base64':
+          return 'Paketearen txantiloia ez da base64 baliozkoa.'
+        case 'wrong-format':
+          return p.locale === undefined
+            ? 'Paketearen txantiloia ez da DOCX edo ODT fitxategi baliozkoa, edo ez dator bat adierazitako formatuarekin.'
+            : `Paketeko "${p.locale}" hizkuntzako txantiloia ez da DOCX edo ODT fitxategi baliozkoa, edo ez dator bat adierazitako formatuarekin.`
+        case 'hash-mismatch':
+          return `Paketeko "${p.locale ?? ''}" hizkuntzako txantiloia ez dator bat erregistratutako hasharekin.`
+        case 'route-mismatch':
+          return 'Paketearen ibilbidea ez dator bat bere edukiarekin.'
+        case 'unreadable-package':
+          return 'Ezin izan da paketea irakurri.'
+        case 'empty-display-name':
+          return 'Formularioaren izena ezin da hutsa izan.'
+        default:
+          return 'Formularioaren paketea ez da baliozkoa.'
+      }
+    },
     'no-variants': () => 'Gehitu gutxienez hizkuntza-txantiloi bat.',
     'invalid-locale': (error) =>
       error.detail === 'multiple-primary'

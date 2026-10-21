@@ -637,6 +637,12 @@ describe('library and form packages', () => {
       ),
     )
     expect(malformed.ok).toBe(false)
+    if (!malformed.ok) {
+      expect(malformed.errors[0]).toMatchObject({
+        code: 'invalid-package',
+        detail: 'invalid-base64',
+      })
+    }
 
     const wrongFormat = await makeForms().importPackage(
       textUpload(
@@ -648,6 +654,12 @@ describe('library and form packages', () => {
       ),
     )
     expect(wrongFormat.ok).toBe(false)
+    if (!wrongFormat.ok) {
+      expect(wrongFormat.errors[0]).toMatchObject({
+        code: 'invalid-package',
+        detail: 'variant-mismatch',
+      })
+    }
 
     const duplicateLabels = await makeForms().importPackage(
       textUpload(
@@ -670,6 +682,39 @@ describe('library and form packages', () => {
       ),
     )
     expect(duplicateLabels.ok).toBe(false)
+  })
+
+  it('reports duplicate labels in a legacy package', async () => {
+    const bytes = await docxBytes(paragraph(run('{{Name}}')))
+    const route = await sha256Hex(bytes)
+    const legacy = {
+      version: 1,
+      route,
+      displayName: 'Duplicate labels',
+      originalFilename: 'duplicate.docx',
+      format: 'docx',
+      definition: {
+        route,
+        format: 'docx',
+        fields: [
+          { label: 'Name', kind: 'text' },
+          { label: 'Name', kind: 'text' },
+        ],
+      },
+      templateBase64: bytesToBase64(bytes),
+      createdAt: '2026-01-01T00:00:00.000Z',
+    }
+
+    const result = await makeForms().importPackage(
+      textUpload(JSON.stringify(legacy), 'duplicate.formpack.json'),
+    )
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.errors[0]).toMatchObject({
+        code: 'invalid-package',
+        detail: 'duplicate-labels',
+      })
+    }
   })
 
   it('imports a legacy version 1 package as a single undetermined variant', async () => {

@@ -1,11 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useServices } from '../app/services'
-import type { FormSummary, TemplateError } from '../domain/types'
+import type {
+  FormSummary,
+  TemplateError,
+  TemplateErrorCode,
+} from '../domain/types'
 import { useI18n } from '../i18n/context'
-import { localizeError } from '../i18n/errors'
+import { localizeError, toLocalizedError } from '../i18n/errors'
 import { downloadBlob } from '../ui/download'
 import { NewFormPanel } from '../ui/NewFormPanel'
+
+function asTemplateError(
+  error: unknown,
+  fallbackCode: TemplateErrorCode,
+): TemplateError {
+  const localized = toLocalizedError(error)
+  if (localized === null) {
+    return { code: fallbackCode, detail: 'unexpected', message: '' }
+  }
+  return {
+    code: localized.code,
+    detail: localized.detail,
+    params: localized.params,
+    label: localized.label,
+    location: localized.location,
+    message: '',
+  }
+}
 
 function FormRow({
   form,
@@ -139,11 +161,9 @@ export default function LibraryPage() {
           setItems(loaded)
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (!cancelled) {
-          setErrors([
-            { code: 'invalid-format', detail: 'unexpected', message: '' },
-          ])
+          setErrors([asTemplateError(error, 'invalid-format')])
         }
       })
     return () => {
@@ -162,8 +182,8 @@ export default function LibraryPage() {
       }
       await refresh()
       navigate(`/f/${result.route}?detected=1`)
-    } catch {
-      setErrors([{ code: 'invalid-package', detail: 'unexpected', message: '' }])
+    } catch (error) {
+      setErrors([asTemplateError(error, 'invalid-package')])
     } finally {
       setBusy(false)
     }
@@ -174,8 +194,8 @@ export default function LibraryPage() {
     try {
       const exported = await forms.exportPackage(route)
       downloadBlob(exported.blob, exported.filename)
-    } catch {
-      setErrors([{ code: 'not-found', detail: 'unexpected', message: '' }])
+    } catch (error) {
+      setErrors([asTemplateError(error, 'not-found')])
     }
   }
 
@@ -266,9 +286,7 @@ export default function LibraryPage() {
                   await forms.rename(route, name)
                   await refresh()
                 } catch (error) {
-                  setErrors([
-                    { code: 'invalid-format', detail: 'unexpected', message: '' },
-                  ])
+                  setErrors([asTemplateError(error, 'invalid-format')])
                   throw error
                 }
               }}
@@ -276,10 +294,8 @@ export default function LibraryPage() {
                 try {
                   await forms.remove(route)
                   await refresh()
-                } catch {
-                  setErrors([
-                    { code: 'invalid-format', detail: 'unexpected', message: '' },
-                  ])
+                } catch (error) {
+                  setErrors([asTemplateError(error, 'invalid-format')])
                 }
               }}
               onExport={handleExport}
