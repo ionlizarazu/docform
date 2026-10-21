@@ -52,4 +52,10 @@ export interface Messages {
   fieldKindText: string
   fieldKindTextarea: string
   fieldKindSelect: string
+  fieldsOptional: string
+  chooseOption: string
+  download: string
+  downloadDocuments: string
+  preview: string
+  leaveWarning: string
 }

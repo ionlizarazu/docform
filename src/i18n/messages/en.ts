@@ -63,4 +63,10 @@ export const en: Messages = {
   fieldKindText: 'Text',
   fieldKindTextarea: 'Long text',
   fieldKindSelect: 'Select',
+  fieldsOptional: 'All fields are optional.',
+  chooseOption: 'Choose…',
+  download: 'Download filled document',
+  downloadDocuments: 'Download filled documents',
+  preview: 'Preview',
+  leaveWarning: 'You have unsaved answers. Leave this page anyway?',
 }

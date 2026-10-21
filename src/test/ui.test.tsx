@@ -240,6 +240,86 @@ describe('FormPage', () => {
       await screen.findByText('Form not found on this device'),
     ).toBeInTheDocument()
   })
+
+  it('localizes the form page while keeping template labels in the document language', async () => {
+    renderFormPage(makeForms({ get: async () => view }), '/f/abc123', 'es')
+
+    expect(
+      await screen.findByText('Todos los campos son opcionales.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Name')).toHaveAttribute('lang', 'en')
+    expect(screen.getByRole('option', { name: 'Elige…' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Descargar documentos rellenos' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Vista previa' }),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes form actions in Basque', async () => {
+    renderFormPage(makeForms({ get: async () => view }), '/f/abc123', 'eu')
+
+    expect(
+      await screen.findByText('Eremu guztiak hautazkoak dira.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Deskargatu betetako dokumentuak' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Aurrebista' }),
+    ).toBeInTheDocument()
+  })
+
+  it('preserves answers when the interface language changes', async () => {
+    render(
+      <MemoryRouter initialEntries={['/f/abc123']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview: fakePreview }}
+          >
+            <App />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.type(await screen.findByLabelText('Name'), 'Ada')
+    await userEvent.selectOptions(screen.getByLabelText('Country'), 'France')
+    await userEvent.selectOptions(
+      screen.getByLabelText('Interface language'),
+      'es',
+    )
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Ada')
+    expect(screen.getByLabelText('Country')).toHaveValue('France')
+    expect(
+      screen.getByText('Todos los campos son opcionales.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Name')).toHaveAttribute('lang', 'en')
+  })
+
+  it('localizes the unsaved-answer warning', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderFormPage(makeForms({ get: async () => view }), '/f/abc123', 'es')
+
+    await userEvent.type(await screen.findByLabelText('Name'), 'Ada')
+    await userEvent.click(
+      screen.getByRole('link', { name: 'Volver a los formularios' }),
+    )
+
+    expect(confirm).toHaveBeenCalledWith(
+      'Tienes respuestas sin guardar. ¿Salir de esta página de todos modos?',
+    )
+  })
+
+  it('localizes the missing-form page', async () => {
+    renderFormPage(makeForms({ get: async () => null }), '/f/abc123', 'es')
+
+    expect(
+      await screen.findByText('Formulario no encontrado en este dispositivo'),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('PreviewPage', () => {

@@ -69,4 +69,10 @@ export const eu: Messages = {
   fieldKindText: 'Testua',
   fieldKindTextarea: 'Testu luzea',
   fieldKindSelect: 'Hautaketa',
+  fieldsOptional: 'Eremu guztiak hautazkoak dira.',
+  chooseOption: 'Aukeratu…',
+  download: 'Deskargatu betetako dokumentua',
+  downloadDocuments: 'Deskargatu betetako dokumentuak',
+  preview: 'Aurrebista',
+  leaveWarning: 'Gorde gabeko erantzunak dituzu. Orrialde hau utzi nahi duzu?',
 }

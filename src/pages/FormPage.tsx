@@ -4,7 +4,6 @@ import { useServices } from '../app/services'
 import type { FormView } from '../domain/types'
 import { fieldByLabel, primaryVariantOf } from '../domain/variants'
 import { useI18n } from '../i18n/context'
-import { strings } from '../strings'
 import { bytesToBlob, downloadBlob } from '../ui/download'
 import { messageOf } from '../ui/errors'
 import NotFoundPage from './NotFoundPage'
@@ -15,7 +14,7 @@ export default function FormPage() {
   const [searchParams] = useSearchParams()
   const detected = searchParams.get('detected') === '1'
   const { forms } = useServices()
-  const { messages } = useI18n()
+  const { messages, locale } = useI18n()
   const navigate = useNavigate()
   const [form, setForm] = useState<FormView | null | undefined>(undefined)
   const [answers, setAnswers] = useState<Map<string, string>>(() => new Map())
@@ -38,7 +37,7 @@ export default function FormPage() {
       })
       .catch((loadFailure) => {
         if (!cancelled) {
-          setLoadError(messageOf(loadFailure, strings.loadFailed))
+          setLoadError(messageOf(loadFailure, ''))
         }
       })
     return () => {
@@ -52,36 +51,37 @@ export default function FormPage() {
     }
     const handler = (event: BeforeUnloadEvent) => {
       event.preventDefault()
-      event.returnValue = strings.leaveWarning
+      event.returnValue = messages.leaveWarning
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [dirty])
+  }, [dirty, messages.leaveWarning])
 
   if (loadError !== null) {
     return (
       <section className="page">
-        <h1>{strings.loadFailed}</h1>
-        <p className="muted">{loadError}</p>
+        <h1>{messages.loadFailed}</h1>
+        {loadError !== '' && <p className="muted">{loadError}</p>}
         <Link className="button-link" to="/">
-          {strings.backToLibrary}
+          {messages.backToLibrary}
         </Link>
       </section>
     )
   }
 
   if (form === undefined) {
-    return <p className="muted">{strings.loading}</p>
+    return <p className="muted">{messages.loading}</p>
   }
 
   if (form === null) {
-    return <NotFoundPage title={strings.notFoundTitle} body={strings.notFoundBody} />
+    return <NotFoundPage />
   }
 
+  const primary = primaryVariantOf(form.definition)
+  const primaryDocumentLang =
+    form.primaryLocale === 'und' ? undefined : form.primaryLocale
+
   if (detected) {
-    const primary = primaryVariantOf(form.definition)
-    const primaryDocumentLang =
-      form.primaryLocale === 'und' ? undefined : form.primaryLocale
     return (
       <section className="page">
         <div className="page-heading">
@@ -192,7 +192,7 @@ export default function FormPage() {
       setDirty(false)
     } catch (fillError) {
       setError(
-        fillError instanceof Error ? fillError.message : strings.unsupportedUpload,
+        fillError instanceof Error ? fillError.message : messages.errorDetail,
       )
     } finally {
       setBusy(false)
@@ -215,21 +215,23 @@ export default function FormPage() {
             <Link
               to="/"
               onClick={(event) => {
-                if (dirty && !window.confirm(strings.leaveWarning)) {
+                if (dirty && !window.confirm(messages.leaveWarning)) {
                   event.preventDefault()
                 }
               }}
             >
-              {strings.backToLibrary}
+              {messages.backToLibrary}
             </Link>
           </p>
           <h1>{form.displayName}</h1>
-          <p className="muted">{strings.fieldsOptional}</p>
+          <p className="muted">{messages.fieldsOptional}</p>
         </div>
         <div className="upload-actions">
-          {form.locales.map((locale) => (
-            <span className="badge" key={locale}>
-              {locale === 'und' ? 'single' : locale}
+          {form.locales.map((documentLocale) => (
+            <span className="badge" key={documentLocale}>
+              {documentLocale === 'und'
+                ? messages.singleLanguage
+                : documentLocale}
             </span>
           ))}
         </div>
@@ -237,7 +239,8 @@ export default function FormPage() {
 
       {error !== null && (
         <div className="errors" role="alert">
-          {error}
+          <strong>{messages.errorsTitle}</strong>
+          <p>{error}</p>
         </div>
       )}
 
@@ -248,12 +251,18 @@ export default function FormPage() {
           void handleDownload()
         }}
       >
-        {primaryVariantOf(form.definition).fields.map((field, index) => {
+        {primary.fields.map((field, index) => {
           const id = `field-${index}`
           const value = answers.get(field.label) ?? ''
           return (
-            <div className="field" key={`${field.label}-${index}`}>
-              <label htmlFor={id}>{field.label}</label>
+            <div
+              className="field"
+              key={`${field.label}-${index}`}
+              lang={primaryDocumentLang}
+            >
+              <label htmlFor={id} lang={primaryDocumentLang}>
+                {field.label}
+              </label>
               {field.kind === 'textarea' ? (
                 <textarea
                   id={id}
@@ -269,7 +278,9 @@ export default function FormPage() {
                   value={value}
                   onChange={(event) => setAnswer(field.label, event.target.value)}
                 >
-                  <option value="">{strings.chooseOption}</option>
+                  <option value="" lang={locale}>
+                    {messages.chooseOption}
+                  </option>
                   {(field.options ?? []).map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -291,10 +302,15 @@ export default function FormPage() {
 
         <div className="form-actions">
           <button type="submit" disabled={busy}>
-            {form.variantCount > 1 ? strings.downloadDocuments : strings.download}
+            {form.variantCount > 1 ? messages.downloadDocuments : messages.download}
           </button>
-          <button type="button" className="secondary" onClick={handlePreview} disabled={busy}>
-            {strings.preview}
+          <button
+            type="button"
+            className="secondary"
+            onClick={handlePreview}
+            disabled={busy}
+          >
+            {messages.preview}
           </button>
         </div>
       </form>

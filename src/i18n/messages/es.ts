@@ -66,4 +66,11 @@ export const es: Messages = {
   fieldKindText: 'Texto',
   fieldKindTextarea: 'Texto largo',
   fieldKindSelect: 'Selección',
+  fieldsOptional: 'Todos los campos son opcionales.',
+  chooseOption: 'Elige…',
+  download: 'Descargar documento relleno',
+  downloadDocuments: 'Descargar documentos rellenos',
+  preview: 'Vista previa',
+  leaveWarning:
+    'Tienes respuestas sin guardar. ¿Salir de esta página de todos modos?',
 }
