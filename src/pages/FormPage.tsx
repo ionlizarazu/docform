@@ -125,13 +125,7 @@ export default function FormPage() {
             <li key={`${field.label}-${index}`}>
               <div>
                 <strong lang={primaryDocumentLang}>{field.label}</strong>
-                <span className="badge">
-                  {field.kind === 'text'
-                    ? messages.fieldKindText
-                    : field.kind === 'textarea'
-                      ? messages.fieldKindTextarea
-                      : messages.fieldKindSelect}
-                </span>
+                <span className="badge">{messages.fieldKind(field.kind)}</span>
               </div>
               {field.kind === 'select' && (
                 <div className="option-pairing">

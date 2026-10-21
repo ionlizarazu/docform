@@ -25,6 +25,7 @@ import type {
   IngestResult,
   StoredForm,
   TemplateError,
+  TemplateErrorParams,
   TemplateFormat,
   VariantDefinition,
 } from '../domain/types'
@@ -306,8 +307,13 @@ async function computeVariantRoute(
   return sha256Hex(new TextEncoder().encode(manifest))
 }
 
-function failure(code: TemplateError['code'], message: string): IngestResult {
-  return { ok: false, errors: [{ code, message }] }
+function failure(
+  code: TemplateError['code'],
+  message: string,
+  detail?: string,
+  params?: TemplateErrorParams,
+): IngestResult {
+  return { ok: false, errors: [{ code, detail, params, message }] }
 }
 
 export interface FormsApi {
@@ -335,7 +341,11 @@ export class TemplateForms implements FormsApi {
 
   async ingestVariants(input: UploadVariant[]): Promise<IngestResult> {
     if (input.length === 0) {
-      return failure('no-variants', 'Add at least one language template.')
+      return failure(
+        'no-variants',
+        'Add at least one language template.',
+        'no-variants',
+      )
     }
 
     const errors: TemplateError[] = []
@@ -359,6 +369,8 @@ export class TemplateForms implements FormsApi {
       if (locale === null) {
         errors.push({
           code: 'invalid-locale',
+          detail: 'invalid-locale',
+          params: { locale: inputVariant.locale },
           message: `"${inputVariant.locale}" is not a valid locale code. Use a tag such as en, es, eu, or en-GB.`,
         })
         continue
@@ -366,6 +378,8 @@ export class TemplateForms implements FormsApi {
       if (seenLocales.has(locale)) {
         errors.push({
           code: 'duplicate-locale',
+          detail: 'duplicate-locale',
+          params: { locale },
           message: `The locale "${locale}" is used by more than one template.`,
         })
         continue
@@ -375,6 +389,11 @@ export class TemplateForms implements FormsApi {
       if (inputVariant.file.size > MAX_UPLOAD_BYTES) {
         errors.push({
           code: 'too-large',
+          detail: 'too-large',
+          params: {
+            maxMb: Math.round(MAX_UPLOAD_BYTES / (1024 * 1024)),
+            path: inputVariant.file.name,
+          },
           message: `"${inputVariant.file.name}" is larger than ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
           location: inputVariant.file.name,
         })
@@ -387,6 +406,8 @@ export class TemplateForms implements FormsApi {
       } catch {
         errors.push({
           code: 'invalid-format',
+          detail: 'unreadable-file',
+          params: { path: inputVariant.file.name },
           message: `"${inputVariant.file.name}" could not be read.`,
           location: inputVariant.file.name,
         })
@@ -409,6 +430,7 @@ export class TemplateForms implements FormsApi {
         if (primaryLocale !== null) {
           errors.push({
             code: 'invalid-locale',
+            detail: 'multiple-primary',
             message: 'Choose exactly one primary language variant.',
           })
         } else {
@@ -432,7 +454,11 @@ export class TemplateForms implements FormsApi {
     }
 
     if (prepared.length === 0) {
-      return failure('no-variants', 'Add at least one language template.')
+      return failure(
+        'no-variants',
+        'Add at least one language template.',
+        'no-variants',
+      )
     }
 
     if (primaryLocale === null) {
@@ -471,7 +497,12 @@ export class TemplateForms implements FormsApi {
 
     const primary = prepared.find((variant) => variant.locale === primaryLocale)
     if (primary === undefined) {
-      return failure('no-variants', 'The primary language variant is missing.')
+      return failure(
+        'no-variants',
+        'The primary language variant is missing.',
+        'missing-primary',
+        { primaryLocale },
+      )
     }
 
     const displayName = stripLocaleSuffix(primary.file.name, primary.locale)

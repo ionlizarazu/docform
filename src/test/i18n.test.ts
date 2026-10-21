@@ -51,7 +51,7 @@ describe('interface formatting', () => {
 })
 
 describe('error presentation adapter', () => {
-  it('falls back to a localized message until code-specific messages exist', () => {
+  it('falls back for unknown errors and synthetic UI errors', () => {
     expect(
       localizeError(
         new Error('raw diagnostic'),
@@ -59,5 +59,58 @@ describe('error presentation adapter', () => {
         messagesByLocale.es.errorDetail,
       ),
     ).toBe('Inténtalo de nuevo.')
+
+    expect(
+      localizeError(
+        {
+          code: 'invalid-format',
+          detail: 'unexpected',
+          message: '',
+        },
+        messagesByLocale.es,
+        messagesByLocale.es.errorDetail,
+      ),
+    ).toBe('Inténtalo de nuevo.')
+  })
+
+  it('localizes structured variant details without showing the raw diagnostic', () => {
+    const message = localizeError(
+      {
+        code: 'variant-mismatch',
+        detail: 'label-set-mismatch',
+        params: {
+          locale: 'es',
+          primaryLocale: 'en',
+          missing: ['Name'],
+          extra: ['Nombre'],
+        },
+        message: 'raw diagnostic',
+      },
+      messagesByLocale.es,
+      messagesByLocale.es.errorDetail,
+    )
+
+    expect(message).toContain('"es"')
+    expect(message).toContain('"en"')
+    expect(message).toContain('Name')
+    expect(message).toContain('Nombre')
+    expect(message).toContain('faltan')
+    expect(message).not.toContain('raw diagnostic')
+  })
+
+  it('localizes a malformed placeholder in Basque', () => {
+    const message = localizeError(
+      {
+        code: 'malformed-placeholder',
+        detail: 'missing-closing-bracket',
+        params: { placeholder: 'Name[One;;Two' },
+        message: 'raw diagnostic',
+      },
+      messagesByLocale.eu,
+      messagesByLocale.eu.errorDetail,
+    )
+
+    expect(message).toContain('Name[One;;Two')
+    expect(message).not.toContain('raw diagnostic')
   })
 })

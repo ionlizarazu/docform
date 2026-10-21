@@ -184,8 +184,26 @@ describe('TemplateForms ingest', () => {
     })
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.errors[0].code).toBe('too-large')
+      expect(result.errors[0]).toMatchObject({
+        code: 'too-large',
+        detail: 'too-large',
+        params: { maxMb: 25 },
+      })
     }
+  })
+
+  it('reports structured details for malformed placeholders', async () => {
+    const bytes = await docxBytes(paragraph(run('{{Country[One;;Two}}')))
+    const result = await makeForms().ingest(upload(bytes, 'broken.docx'))
+
+    if (result.ok) {
+      throw new Error('Expected the template to be rejected')
+    }
+    expect(result.errors[0]).toMatchObject({
+      code: 'malformed-placeholder',
+      detail: 'missing-closing-bracket',
+      params: { placeholder: 'Country[One;;Two' },
+    })
   })
 })
 
@@ -463,6 +481,53 @@ describe('multilingual forms', () => {
       }
       expect(result.errors.map((error) => error.code)).toContain(testCase.code)
     }
+  })
+
+  it('reports structured details for label and option mismatches', async () => {
+    const base = await docxBytes(
+      paragraph(run('{{Name}}')) +
+        paragraph(run('{{Country[One;;Two;;Three]}}')),
+    )
+    const labelMismatch = await docxBytes(paragraph(run('{{Other}}')))
+    const optionMismatch = await docxBytes(
+      paragraph(run('{{Name}}')) + paragraph(run('{{Country[Uno;;Dos]}}')),
+    )
+
+    const labelResult = await makeForms().ingestVariants([
+      { file: upload(base, 'base.en.docx'), locale: 'en', primary: true },
+      { file: upload(labelMismatch, 'bad.es.docx'), locale: 'es' },
+    ])
+    if (labelResult.ok) {
+      throw new Error('Expected the label mismatch to be rejected')
+    }
+    const labelError = labelResult.errors.find(
+      (error) => error.code === 'variant-mismatch',
+    )
+    expect(labelError).toMatchObject({
+      detail: 'label-set-mismatch',
+      params: { locale: 'es', primaryLocale: 'en' },
+    })
+    expect(labelError?.params?.missing).toContain('Name')
+    expect(labelError?.params?.extra).toContain('Other')
+
+    const countResult = await makeForms().ingestVariants([
+      { file: upload(base, 'base.en.docx'), locale: 'en', primary: true },
+      { file: upload(optionMismatch, 'bad.es.docx'), locale: 'es' },
+    ])
+    if (countResult.ok) {
+      throw new Error('Expected the option mismatch to be rejected')
+    }
+    expect(countResult.errors[0]).toMatchObject({
+      code: 'option-count-mismatch',
+      detail: 'option-count-mismatch',
+      params: {
+        label: 'Country',
+        locale: 'es',
+        primaryLocale: 'en',
+        primaryCount: 3,
+        variantCount: 2,
+      },
+    })
   })
 
   it('exports and imports a version 2 variant set', async () => {

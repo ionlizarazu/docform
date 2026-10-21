@@ -29,6 +29,8 @@ export function validateVariantDefinitions(
     return [
       {
         code: 'variant-mismatch',
+        detail: 'missing-primary',
+        params: { primaryLocale },
         message: `The primary locale "${primaryLocale}" does not match any variant.`,
       },
     ]
@@ -39,6 +41,8 @@ export function validateVariantDefinitions(
     if (locales.has(variant.locale)) {
       errors.push({
         code: 'duplicate-locale',
+        detail: 'duplicate-locale',
+        params: { locale: variant.locale },
         message: `The locale "${variant.locale}" is used more than once.`,
       })
     }
@@ -69,6 +73,13 @@ export function validateVariantDefinitions(
         .join('; ')
       errors.push({
         code: 'variant-mismatch',
+        detail: 'label-set-mismatch',
+        params: {
+          locale: variant.locale,
+          primaryLocale: primary.locale,
+          missing,
+          extra,
+        },
         message: `The locale "${variant.locale}" does not declare the same labels as "${primary.locale}" (${details}).`,
       })
       continue
@@ -82,6 +93,14 @@ export function validateVariantDefinitions(
       if (field.kind !== primaryField.kind) {
         errors.push({
           code: 'variant-mismatch',
+          detail: 'kind-mismatch',
+          params: {
+            label,
+            locale: variant.locale,
+            primaryLocale: primary.locale,
+            kind: field.kind,
+            primaryKind: primaryField.kind,
+          },
           message: `The field "${label}" is "${primaryField.kind}" in "${primary.locale}" but "${field.kind}" in "${variant.locale}".`,
           label,
         })
@@ -93,6 +112,14 @@ export function validateVariantDefinitions(
         if (primaryCount !== variantCount) {
           errors.push({
             code: 'option-count-mismatch',
+            detail: 'option-count-mismatch',
+            params: {
+              label,
+              locale: variant.locale,
+              primaryLocale: primary.locale,
+              primaryCount,
+              variantCount,
+            },
             message: `The select field "${label}" has ${primaryCount} options in "${primary.locale}" but ${variantCount} in "${variant.locale}". Options are paired by position, so the counts must match.`,
             label,
           })

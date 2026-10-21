@@ -135,7 +135,7 @@ export function NewFormPanel({
       }
       onCreated(result)
     } catch {
-      onError([{ code: 'invalid-format', message: '' }])
+      onError([{ code: 'invalid-format', detail: 'unexpected', message: '' }])
     } finally {
       setBusy(false)
     }

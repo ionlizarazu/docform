@@ -1,4 +1,23 @@
-import type { Messages } from './types'
+import type { FieldKind, TemplateErrorParams } from '../../domain/types'
+import type { LocalizedError, Messages } from './types'
+
+function fieldKind(kind: FieldKind): string {
+  if (kind === 'text') {
+    return 'Texto'
+  }
+  if (kind === 'textarea') {
+    return 'Texto largo'
+  }
+  return 'Selección'
+}
+
+function kindName(kind: FieldKind | undefined): string {
+  return kind === undefined ? 'campo' : fieldKind(kind)
+}
+
+function params(error: LocalizedError): TemplateErrorParams {
+  return error.params ?? {}
+}
 
 export const es: Messages = {
   appName: 'Docform',
@@ -63,9 +82,7 @@ export const es: Messages = {
   languageVariants: 'Idiomas de los documentos',
   optionPairing:
     'Las opciones de selección se emparejan por posición entre idiomas.',
-  fieldKindText: 'Texto',
-  fieldKindTextarea: 'Texto largo',
-  fieldKindSelect: 'Selección',
+  fieldKind,
   fieldsOptional: 'Todos los campos son opcionales.',
   chooseOption: 'Elige…',
   download: 'Descargar documento relleno',
@@ -87,4 +104,115 @@ export const es: Messages = {
   backToForm: 'Volver al formulario',
   technicalDetails: 'Detalles técnicos',
   loadingDocument: (locale) => `Cargando ${locale}…`,
+  errors: {
+    'invalid-format': (error) => {
+      const p = params(error)
+      switch (error.detail) {
+        case 'not-a-package':
+          return 'Este archivo no es un paquete DOCX u ODT.'
+        case 'unreadable-package':
+          return 'Este archivo no es un paquete DOCX u ODT legible.'
+        case 'macro-enabled':
+          return 'No se admiten documentos con macros. Guarda un .docx sin macros.'
+        case 'not-word':
+          return 'Este paquete no es un documento de texto de Word.'
+        case 'only-odt':
+          return 'Solo se admiten documentos de texto ODT.'
+        case 'not-text-document':
+          return 'Este paquete no es un documento de texto DOCX u ODT.'
+        case 'invalid-xml':
+          return `La parte "${p.path ?? error.location ?? 'documento'}" del paquete no es XML válido.`
+        case 'unreadable-template':
+          return 'No se pudo leer la plantilla.'
+        case 'format-mismatch':
+          return 'El formato guardado no coincide con el paquete de la plantilla.'
+        case 'unreadable-file':
+          return `No se pudo leer "${p.path ?? error.location ?? ''}".`
+        default:
+          return 'Este archivo no es un documento DOCX u ODT compatible.'
+      }
+    },
+    'too-large': (error) => {
+      const p = params(error)
+      const limit = p.maxMb ?? 25
+      return p.path === undefined
+        ? `El archivo supera los ${limit} MB.`
+        : `"${p.path}" supera los ${limit} MB.`
+    },
+    'no-placeholders': () =>
+      'Esta plantilla no tiene marcadores. Añade al menos una declaración {{Label}}.',
+    'malformed-placeholder': (error) => {
+      const p = params(error)
+      const placeholder = p.placeholder ?? ''
+      switch (error.detail) {
+        case 'missing-closing-bracket':
+          return `Al marcador {{${placeholder}}} le falta un corchete de cierre.`
+        case 'text-after-options':
+          return `El marcador {{${placeholder}}} tiene texto después de su lista de opciones.`
+        case 'multiple-option-lists':
+          return `El marcador {{${placeholder}}} tiene más de una lista de opciones.`
+        case 'modifier-with-options':
+          return `El marcador {{${placeholder}}} mezcla un modificador con una lista de opciones.`
+        case 'option-closing-bracket':
+          return `Una opción de "${p.label ?? error.label ?? ''}" contiene un corchete de cierre.`
+        case 'closing-bracket-without-opening':
+          return `El marcador {{${placeholder}}} tiene un corchete de cierre sin uno de apertura.`
+        case 'missing-double-brace':
+          return `A un marcador cerca de "${placeholder}" le faltan "}}".`
+        case 'nested-open':
+          return `Un marcador cerca de "${placeholder}" se abre sin cerrarse.`
+        case 'invalid-textarea':
+          return `El marcador {{${placeholder}}} tiene una declaración de textarea no válida.`
+        default:
+          return 'Un marcador no es válido. Revisa las llaves dobles y la sintaxis de las opciones.'
+      }
+    },
+    'unknown-modifier': (error) => {
+      const p = params(error)
+      return `El marcador {{${p.placeholder ?? ''}}} usa el modificador desconocido "${p.modifier ?? ''}". Solo se admite "|textarea".`
+    },
+    'empty-label': () => 'Un marcador tiene una etiqueta vacía.',
+    'empty-option': (error) =>
+      `El campo de selección "${params(error).label ?? error.label ?? ''}" tiene una opción vacía.`,
+    'conflicting-label': (error) =>
+      `La etiqueta "${params(error).label ?? error.label ?? ''}" se declara con tipos u opciones en conflicto.`,
+    'unsupported-region': (error) =>
+      `Un marcador en "${params(error).location ?? error.location ?? ''}" está fuera de las regiones admitidas. Muévelo al cuerpo del documento, a una tabla, a un encabezado o a un pie.`,
+    'not-found': () => 'Este formulario no está guardado en este dispositivo.',
+    'invalid-answer': (error) =>
+      `"${params(error).answer ?? ''}" no es una opción de "${params(error).label ?? error.label ?? ''}".`,
+    'invalid-package': () => 'El paquete del formulario no es válido.',
+    'no-variants': () => 'Añade al menos una plantilla de idioma.',
+    'invalid-locale': (error) =>
+      error.detail === 'multiple-primary'
+        ? 'Elige exactamente una variante de idioma principal.'
+        : `"${params(error).locale ?? ''}" no es un código de idioma válido. Usa una etiqueta como en, es, eu o en-GB.`,
+    'duplicate-locale': (error) =>
+      `El idioma "${params(error).locale ?? error.label ?? ''}" se usa en más de una plantilla.`,
+    'variant-mismatch': (error) => {
+      const p = params(error)
+      if (error.detail === 'missing-primary') {
+        return `El idioma principal "${p.primaryLocale ?? ''}" no coincide con ninguna variante.`
+      }
+      if (error.detail === 'label-set-mismatch') {
+        const missing = (p.missing ?? []).join(', ')
+        const extra = (p.extra ?? []).join(', ')
+        const details = [
+          missing === '' ? '' : `faltan: ${missing}`,
+          extra === '' ? '' : `sobran: ${extra}`,
+        ]
+          .filter((part) => part !== '')
+          .join('; ')
+        return `El idioma "${p.locale ?? ''}" no declara las mismas etiquetas que "${p.primaryLocale ?? ''}"${details === '' ? '' : ` (${details})`}.`
+      }
+      if (error.detail === 'kind-mismatch') {
+        return `El campo "${p.label ?? error.label ?? ''}" es "${kindName(p.primaryKind)}" en "${p.primaryLocale ?? ''}" pero "${kindName(p.kind)}" en "${p.locale ?? ''}".`
+      }
+      return 'Las variantes de idioma no declaran los mismos campos.'
+    },
+    'option-count-mismatch': (error) => {
+      const p = params(error)
+      return `El campo de selección "${p.label ?? error.label ?? ''}" tiene ${p.primaryCount ?? 0} opciones en "${p.primaryLocale ?? ''}" pero ${p.variantCount ?? 0} en "${p.locale ?? ''}". Las opciones se emparejan por posición, así que las cantidades deben coincidir.`
+    },
+  },
 }

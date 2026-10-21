@@ -587,6 +587,118 @@ describe('App shell', () => {
     expect(fileInput.files?.[0]?.name).toBe('draft.docx')
   })
 
+  it('shows localized variant details and hides the raw diagnostic', async () => {
+    const ingestVariants = vi.fn<FormsApi['ingestVariants']>(async () => ({
+      ok: false,
+      errors: [
+        {
+          code: 'variant-mismatch',
+          detail: 'label-set-mismatch',
+          params: {
+            locale: 'es',
+            primaryLocale: 'en',
+            missing: ['Name'],
+            extra: ['Nombre'],
+          },
+          message: 'raw diagnostic',
+        },
+      ],
+    }))
+
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{ forms: makeForms({ ingestVariants }), preview: fakePreview }}
+          >
+            <App />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /nuevo formulario/i }),
+    )
+    await userEvent.upload(
+      screen.getByLabelText('Plantilla 1'),
+      new File(['en'], 'en.docx'),
+    )
+    await userEvent.upload(
+      screen.getByLabelText('Plantilla 2'),
+      new File(['es'], 'es.docx'),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: /crear formulario/i }),
+    )
+
+    expect(
+      await screen.findByText('No se pudo completar la acción'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        (content, element) =>
+          element?.tagName === 'LI' &&
+          content.includes('Name') &&
+          content.includes('Nombre') &&
+          content.includes('faltan'),
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
+  })
+
+  it('shows localized parse details in Basque', async () => {
+    const ingestVariants = vi.fn<FormsApi['ingestVariants']>(async () => ({
+      ok: false,
+      errors: [
+        {
+          code: 'malformed-placeholder',
+          detail: 'missing-closing-bracket',
+          params: { placeholder: 'Name[One;;Two' },
+          message: 'raw diagnostic',
+        },
+      ],
+    }))
+
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="eu">
+          <ServicesProvider
+            value={{ forms: makeForms({ ingestVariants }), preview: fakePreview }}
+          >
+            <App />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /formulario berria/i }),
+    )
+    await userEvent.upload(
+      screen.getByLabelText('Txantiloia 1'),
+      new File(['en'], 'en.docx'),
+    )
+    await userEvent.upload(
+      screen.getByLabelText('Txantiloia 2'),
+      new File(['es'], 'es.docx'),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: /sortu formularioa/i }),
+    )
+
+    expect(
+      await screen.findByText('Ezin izan da ekintza osatu'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        (content, element) =>
+          element?.tagName === 'LI' && content.includes('Name[One;;Two'),
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
+  })
+
   it('keeps rendering when storage cannot be read', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked')

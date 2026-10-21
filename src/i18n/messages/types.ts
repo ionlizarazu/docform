@@ -1,3 +1,19 @@
+import type {
+  FieldKind,
+  TemplateErrorCode,
+  TemplateErrorParams,
+} from '../../domain/types'
+
+export interface LocalizedError {
+  code: TemplateErrorCode
+  detail?: string
+  params?: TemplateErrorParams
+  label?: string
+  location?: string
+}
+
+export type ErrorMessage = (error: LocalizedError) => string
+
 export interface Messages {
   appName: string
   appTagline: string
@@ -49,9 +65,7 @@ export interface Messages {
   detectedHint: string
   languageVariants: string
   optionPairing: string
-  fieldKindText: string
-  fieldKindTextarea: string
-  fieldKindSelect: string
+  fieldKind: (kind: FieldKind) => string
   fieldsOptional: string
   chooseOption: string
   download: string
@@ -68,4 +82,5 @@ export interface Messages {
   backToForm: string
   technicalDetails: string
   loadingDocument: (locale: string) => string
+  errors: Record<TemplateErrorCode, ErrorMessage>
 }

@@ -26,8 +26,12 @@ interface DetectedTemplate {
   zip: JSZip
 }
 
-function invalidFormat(message: string): TemplateFormError {
-  return new TemplateFormError('invalid-format', message)
+function invalidFormat(
+  message: string,
+  detail: string,
+  params?: { path?: string },
+): TemplateFormError {
+  return new TemplateFormError('invalid-format', message, { detail, params })
 }
 
 function numericSuffix(path: string): number {
@@ -40,6 +44,10 @@ export async function detectTemplate(bytes: Uint8Array): Promise<DetectedTemplat
     throw new TemplateFormError(
       'too-large',
       `The file is larger than ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`,
+      {
+        detail: 'too-large',
+        params: { maxMb: Math.round(MAX_UPLOAD_BYTES / (1024 * 1024)) },
+      },
     )
   }
 
@@ -50,14 +58,20 @@ export async function detectTemplate(bytes: Uint8Array): Promise<DetectedTemplat
     bytes[2] !== 0x03 ||
     bytes[3] !== 0x04
   ) {
-    throw invalidFormat('This file is not a DOCX or ODT package.')
+    throw invalidFormat(
+      'This file is not a DOCX or ODT package.',
+      'not-a-package',
+    )
   }
 
   let zip: JSZip
   try {
     zip = await JSZip.loadAsync(bytes)
   } catch {
-    throw invalidFormat('This file is not a readable DOCX or ODT package.')
+    throw invalidFormat(
+      'This file is not a readable DOCX or ODT package.',
+      'unreadable-package',
+    )
   }
 
   const contentTypes = zip.file('[Content_Types].xml')
@@ -67,10 +81,16 @@ export async function detectTemplate(bytes: Uint8Array): Promise<DetectedTemplat
       zip.file('word/vbaProject.bin') !== null ||
       /macroEnabled|vbaProject/i.test(content)
     ) {
-      throw invalidFormat('Macro-enabled documents are not supported. Save a .docx without macros.')
+      throw invalidFormat(
+        'Macro-enabled documents are not supported. Save a .docx without macros.',
+        'macro-enabled',
+      )
     }
     if (!/wordprocessingml\.document(?:\.main)?\+xml/.test(content)) {
-      throw invalidFormat('This package is not a Word text document.')
+      throw invalidFormat(
+        'This package is not a Word text document.',
+        'not-word',
+      )
     }
     return { format: 'docx', zip }
   }
@@ -82,11 +102,17 @@ export async function detectTemplate(bytes: Uint8Array): Promise<DetectedTemplat
       return { format: 'odt', zip }
     }
     if (mimetype.startsWith('application/vnd.oasis.opendocument.')) {
-      throw invalidFormat('Only ODT text documents are supported.')
+      throw invalidFormat(
+        'Only ODT text documents are supported.',
+        'only-odt',
+      )
     }
   }
 
-  throw invalidFormat('This package is not a DOCX or ODT text document.')
+  throw invalidFormat(
+    'This package is not a DOCX or ODT text document.',
+    'not-text-document',
+  )
 }
 
 function supportedParts(zip: JSZip, format: TemplateFormat): string[] {
@@ -126,6 +152,8 @@ async function collectParagraphs(
     } catch {
       errors.push({
         code: 'invalid-format',
+        detail: 'invalid-xml',
+        params: { path },
         message: `The package part "${path}" is not valid XML.`,
         location: path,
       })
@@ -186,11 +214,29 @@ export async function parseTemplate(
     detected = await detectTemplate(bytes)
   } catch (error) {
     if (error instanceof TemplateFormError) {
-      return { ok: false, errors: [{ code: error.code, message: error.message }] }
+      return {
+        ok: false,
+        errors: [
+          {
+            code: error.code,
+            detail: error.detail,
+            params: error.params,
+            message: error.message,
+            label: error.label,
+            location: error.location,
+          },
+        ],
+      }
     }
     return {
       ok: false,
-      errors: [{ code: 'invalid-format', message: 'The template could not be read.' }],
+      errors: [
+        {
+          code: 'invalid-format',
+          detail: 'unreadable-template',
+          message: 'The template could not be read.',
+        },
+      ],
     }
   }
 
@@ -204,6 +250,8 @@ export async function parseTemplate(
       if (scan.matches.length > 0 || scan.errors.length > 0 || paragraph.text.includes('{{')) {
         errors.push({
           code: 'unsupported-region',
+          detail: 'unsupported-region',
+          params: { location: paragraph.location },
           message: `A placeholder in "${paragraph.location}" is outside the supported regions. Move it into the document body, a table, a header, or a footer.`,
           location: paragraph.location,
         })
@@ -216,7 +264,9 @@ export async function parseTemplate(
   if (errors.length === 0 && fields.length === 0) {
     errors.push({
       code: 'no-placeholders',
-      message: 'This template has no placeholders. Add at least one {{Label}} declaration.',
+      detail: 'no-placeholders',
+      message:
+        'This template has no placeholders. Add at least one {{Label}} declaration.',
     })
   }
 
@@ -344,13 +394,18 @@ export async function fillTemplate(
     if (error instanceof TemplateFormError) {
       throw error
     }
-    throw new TemplateFormError('invalid-format', 'The template could not be read.')
+    throw new TemplateFormError(
+      'invalid-format',
+      'The template could not be read.',
+      { detail: 'unreadable-template' },
+    )
   }
 
   if (detected.format !== format) {
     throw new TemplateFormError(
       'invalid-format',
       'The stored format does not match the template package.',
+      { detail: 'format-mismatch' },
     )
   }
 

@@ -1,4 +1,23 @@
-import type { Messages } from './types'
+import type { FieldKind, TemplateErrorParams } from '../../domain/types'
+import type { LocalizedError, Messages } from './types'
+
+function fieldKind(kind: FieldKind): string {
+  if (kind === 'text') {
+    return 'Testua'
+  }
+  if (kind === 'textarea') {
+    return 'Testu luzea'
+  }
+  return 'Hautaketa'
+}
+
+function kindName(kind: FieldKind | undefined): string {
+  return kind === undefined ? 'eremua' : fieldKind(kind)
+}
+
+function params(error: LocalizedError): TemplateErrorParams {
+  return error.params ?? {}
+}
 
 export const eu: Messages = {
   appName: 'Docform',
@@ -66,9 +85,7 @@ export const eu: Messages = {
   languageVariants: 'Dokumentuen hizkuntzak',
   optionPairing:
     'Aukera-eremuak posizioaren arabera parekatzen dira hizkuntzen artean.',
-  fieldKindText: 'Testua',
-  fieldKindTextarea: 'Testu luzea',
-  fieldKindSelect: 'Hautaketa',
+  fieldKind,
   fieldsOptional: 'Eremu guztiak hautazkoak dira.',
   chooseOption: 'Aukeratu…',
   download: 'Deskargatu betetako dokumentua',
@@ -88,4 +105,115 @@ export const eu: Messages = {
   backToForm: 'Itzuli formulariora',
   technicalDetails: 'Xehetasun teknikoak',
   loadingDocument: (locale) => `${locale} kargatzen…`,
+  errors: {
+    'invalid-format': (error) => {
+      const p = params(error)
+      switch (error.detail) {
+        case 'not-a-package':
+          return 'Fitxategi hau ez da DOCX edo ODT pakete bat.'
+        case 'unreadable-package':
+          return 'Fitxategi hau ez da DOCX edo ODT pakete irakurgarri bat.'
+        case 'macro-enabled':
+          return 'Makroak dituzten dokumentuak ez dira onartzen. Gorde .docx bat makrorik gabe.'
+        case 'not-word':
+          return 'Pakete hau ez da Word testu-dokumentu bat.'
+        case 'only-odt':
+          return 'ODT testu-dokumentuak soilik onartzen dira.'
+        case 'not-text-document':
+          return 'Pakete hau ez da DOCX edo ODT testu-dokumentu bat.'
+        case 'invalid-xml':
+          return `Paketeko "${p.path ?? error.location ?? 'dokumentua'}" atala ez da XML baliozkoa.`
+        case 'unreadable-template':
+          return 'Ezin izan da txantiloia irakurri.'
+        case 'format-mismatch':
+          return 'Gordetako formatua ez dator bat txantiloiaren paketearekin.'
+        case 'unreadable-file':
+          return `Ezin izan da "${p.path ?? error.location ?? ''}" irakurri.`
+        default:
+          return 'Fitxategi hau ez da DOCX edo ODT dokumentu onargarri bat.'
+      }
+    },
+    'too-large': (error) => {
+      const p = params(error)
+      const limit = p.maxMb ?? 25
+      return p.path === undefined
+        ? `Fitxategiak ${limit} MB gainditzen ditu.`
+        : `"${p.path}" fitxategiak ${limit} MB gainditzen ditu.`
+    },
+    'no-placeholders': () =>
+      'Txantiloi honek ez du markatzailerik. Gehitu gutxienez {{Label}} adierazpen bat.',
+    'malformed-placeholder': (error) => {
+      const p = params(error)
+      const placeholder = p.placeholder ?? ''
+      switch (error.detail) {
+        case 'missing-closing-bracket':
+          return `{{${placeholder}}} markatzailerik falta zaio itxiera-parentesia.`
+        case 'text-after-options':
+          return `{{${placeholder}}} markatzaileak testua du aukera-zerrendaren ondoren.`
+        case 'multiple-option-lists':
+          return `{{${placeholder}}} markatzaileak aukera-zerrenda bat baino gehiago ditu.`
+        case 'modifier-with-options':
+          return `{{${placeholder}}} markatzaileak modifikatzaile bat eta aukera-zerrenda bat nahasten ditu.`
+        case 'option-closing-bracket':
+          return `"${p.label ?? error.label ?? ''}" aukerak itxiera-parentesi bat du.`
+        case 'closing-bracket-without-opening':
+          return `{{${placeholder}}} markatzaileak itxiera-parentesi bat du irekiera-parentesirik gabe.`
+        case 'missing-double-brace':
+          return `"${placeholder}" inguruko markatzaile bati "}}" falta zaio.`
+        case 'nested-open':
+          return `"${placeholder}" inguruko markatzaile bat ireki egiten da itxi gabe.`
+        case 'invalid-textarea':
+          return `{{${placeholder}}} markatzaileak textarea-adierazpen baliogabea du.`
+        default:
+          return 'Markatzaile bat baliogabea da. Egiaztatu giltza bikoitzak eta aukeren sintaxia.'
+      }
+    },
+    'unknown-modifier': (error) => {
+      const p = params(error)
+      return `{{${p.placeholder ?? ''}}} markatzaileak "${p.modifier ?? ''}" modifikatzaile ezezaguna erabiltzen du. "|textarea" soilik onartzen da.`
+    },
+    'empty-label': () => 'Markatzaile batek etiketa hutsa du.',
+    'empty-option': (error) =>
+      `"${params(error).label ?? error.label ?? ''}" hautaketa-eremuak aukera hutsa du.`,
+    'conflicting-label': (error) =>
+      `"${params(error).label ?? error.label ?? ''}" etiketa mota edo aukera kontrajarriekin adierazten da.`,
+    'unsupported-region': (error) =>
+      `"${params(error).location ?? error.location ?? ''}" lekuan markatzaile bat dago onartutako eremuetatik kanpo. Eraman ezazu dokumentuaren gorputzera, taula batera, goiburura edo orri-oinean.`,
+    'not-found': () => 'Formulario hau ez dago gailu honetan gordeta.',
+    'invalid-answer': (error) =>
+      `"${params(error).answer ?? ''}" ez da "${params(error).label ?? error.label ?? ''}" eremuko aukera bat.`,
+    'invalid-package': () => 'Formularioaren paketea ez da baliozkoa.',
+    'no-variants': () => 'Gehitu gutxienez hizkuntza-txantiloi bat.',
+    'invalid-locale': (error) =>
+      error.detail === 'multiple-primary'
+        ? 'Aukeratu hizkuntza nagusiaren aldaera bat soilik.'
+        : `"${params(error).locale ?? ''}" ez da hizkuntza-kode baliozkoa. Erabili en, es, eu edo en-GB bezalako etiketa bat.`,
+    'duplicate-locale': (error) =>
+      `"${params(error).locale ?? error.label ?? ''}" hizkuntza txantiloi batean baino gehiagotan erabiltzen da.`,
+    'variant-mismatch': (error) => {
+      const p = params(error)
+      if (error.detail === 'missing-primary') {
+        return `"${p.primaryLocale ?? ''}" hizkuntza nagusia ez dator bat inongo aldaerarekin.`
+      }
+      if (error.detail === 'label-set-mismatch') {
+        const missing = (p.missing ?? []).join(', ')
+        const extra = (p.extra ?? []).join(', ')
+        const details = [
+          missing === '' ? '' : `falta dira: ${missing}`,
+          extra === '' ? '' : `soberan: ${extra}`,
+        ]
+          .filter((part) => part !== '')
+          .join('; ')
+        return `"${p.locale ?? ''}" hizkuntzak ez ditu "${p.primaryLocale ?? ''}" hizkuntzaren etiketa berberak adierazten${details === '' ? '' : ` (${details})`}.`
+      }
+      if (error.detail === 'kind-mismatch') {
+        return `"${p.label ?? error.label ?? ''}" eremua "${kindName(p.primaryKind)}" da "${p.primaryLocale ?? ''}" hizkuntzan, baina "${kindName(p.kind)}" "${p.locale ?? ''}" hizkuntzan.`
+      }
+      return 'Hizkuntza-aldaerek ez dituzte eremu berberak adierazten.'
+    },
+    'option-count-mismatch': (error) => {
+      const p = params(error)
+      return `"${p.label ?? error.label ?? ''}" hautaketa-eremuak ${p.primaryCount ?? 0} aukera ditu "${p.primaryLocale ?? ''}" hizkuntzan, baina ${p.variantCount ?? 0} "${p.locale ?? ''}" hizkuntzan. Aukerak posizioaren arabera parekatzen dira, beraz, kopuruek bat etorri behar dute.`
+    },
+  },
 }

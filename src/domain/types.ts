@@ -42,8 +42,31 @@ export type TemplateErrorCode =
   | 'variant-mismatch'
   | 'option-count-mismatch'
 
+export interface TemplateErrorParams {
+  locale?: string
+  primaryLocale?: string
+  label?: string
+  missing?: string[]
+  extra?: string[]
+  count?: number
+  primaryCount?: number
+  variantCount?: number
+  maxMb?: number
+  placeholder?: string
+  modifier?: string
+  path?: string
+  location?: string
+  answer?: string
+  index?: number
+  kind?: FieldKind
+  primaryKind?: FieldKind
+  variantKind?: FieldKind
+}
+
 export interface TemplateError {
   code: TemplateErrorCode
+  detail?: string
+  params?: TemplateErrorParams
   message: string
   label?: string
   location?: string
@@ -146,10 +169,27 @@ export const ZIP_MIME = 'application/zip'
 
 export class TemplateFormError extends Error {
   code: TemplateErrorCode
+  detail?: string
+  params?: TemplateErrorParams
+  label?: string
+  location?: string
 
-  constructor(code: TemplateErrorCode, message: string) {
+  constructor(
+    code: TemplateErrorCode,
+    message: string,
+    options: {
+      detail?: string
+      params?: TemplateErrorParams
+      label?: string
+      location?: string
+    } = {},
+  ) {
     super(message)
     this.name = 'TemplateFormError'
     this.code = code
+    this.detail = options.detail
+    this.params = options.params
+    this.label = options.label
+    this.location = options.location
   }
 }

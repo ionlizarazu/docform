@@ -141,7 +141,9 @@ export default function LibraryPage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setErrors([{ code: 'invalid-format', message: '' }])
+          setErrors([
+            { code: 'invalid-format', detail: 'unexpected', message: '' },
+          ])
         }
       })
     return () => {
@@ -161,7 +163,7 @@ export default function LibraryPage() {
       await refresh()
       navigate(`/f/${result.route}?detected=1`)
     } catch {
-      setErrors([{ code: 'invalid-package', message: '' }])
+      setErrors([{ code: 'invalid-package', detail: 'unexpected', message: '' }])
     } finally {
       setBusy(false)
     }
@@ -173,7 +175,7 @@ export default function LibraryPage() {
       const exported = await forms.exportPackage(route)
       downloadBlob(exported.blob, exported.filename)
     } catch {
-      setErrors([{ code: 'not-found', message: '' }])
+      setErrors([{ code: 'not-found', detail: 'unexpected', message: '' }])
     }
   }
 
@@ -263,9 +265,11 @@ export default function LibraryPage() {
                 try {
                   await forms.rename(route, name)
                   await refresh()
-                } catch {
-                  setErrors([{ code: 'invalid-format', message: '' }])
-                  throw new Error('rename failed')
+                } catch (error) {
+                  setErrors([
+                    { code: 'invalid-format', detail: 'unexpected', message: '' },
+                  ])
+                  throw error
                 }
               }}
               onDelete={async (route) => {
@@ -273,7 +277,9 @@ export default function LibraryPage() {
                   await forms.remove(route)
                   await refresh()
                 } catch {
-                  setErrors([{ code: 'invalid-format', message: '' }])
+                  setErrors([
+                    { code: 'invalid-format', detail: 'unexpected', message: '' },
+                  ])
                 }
               }}
               onExport={handleExport}
