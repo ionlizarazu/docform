@@ -69,4 +69,16 @@ export const en: Messages = {
   downloadDocuments: 'Download filled documents',
   preview: 'Preview',
   leaveWarning: 'You have unsaved answers. Leave this page anyway?',
+  previewTitle: 'Approximate preview',
+  previewNotice:
+    'This preview is approximate. Download the filled document for the exact result.',
+  previewNoticePlural:
+    'This preview is approximate. Download the filled documents for the exact results.',
+  print: 'Print',
+  downloadInstead: 'Download instead',
+  previewUnavailable: 'The preview could not be rendered for this document.',
+  previewNeedsAnswers: 'Fill the form first to preview a document.',
+  backToForm: 'Back to form',
+  technicalDetails: 'Technical details',
+  loadingDocument: (locale) => `Loading ${locale}…`,
 }

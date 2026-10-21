@@ -7,6 +7,7 @@ import { webcrypto } from 'node:crypto'
 afterEach(() => {
   cleanup()
   localStorage.clear()
+  sessionStorage.clear()
   document.documentElement.lang = 'en'
 })
 

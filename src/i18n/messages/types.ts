@@ -58,4 +58,14 @@ export interface Messages {
   downloadDocuments: string
   preview: string
   leaveWarning: string
+  previewTitle: string
+  previewNotice: string
+  previewNoticePlural: string
+  print: string
+  downloadInstead: string
+  previewUnavailable: string
+  previewNeedsAnswers: string
+  backToForm: string
+  technicalDetails: string
+  loadingDocument: (locale: string) => string
 }

@@ -305,6 +305,20 @@ p {
   color: #5f4708;
 }
 
+.technical-details {
+  margin: 0.55rem 0;
+  font-size: 0.86rem;
+}
+
+.technical-details summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.technical-details p {
+  margin: 0.35rem 0 0;
+}
+
 .new-form-panel {
   background: var(--paper);
   border: 1px solid var(--line);

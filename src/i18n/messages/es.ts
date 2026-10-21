@@ -73,4 +73,18 @@ export const es: Messages = {
   preview: 'Vista previa',
   leaveWarning:
     'Tienes respuestas sin guardar. ¿Salir de esta página de todos modos?',
+  previewTitle: 'Vista previa aproximada',
+  previewNotice:
+    'Esta vista previa es aproximada. Descarga el documento relleno para obtener el resultado exacto.',
+  previewNoticePlural:
+    'Esta vista previa es aproximada. Descarga los documentos rellenos para obtener los resultados exactos.',
+  print: 'Imprimir',
+  downloadInstead: 'Descargar en su lugar',
+  previewUnavailable:
+    'No se pudo renderizar la vista previa de este documento.',
+  previewNeedsAnswers:
+    'Rellena el formulario primero para previsualizar un documento.',
+  backToForm: 'Volver al formulario',
+  technicalDetails: 'Detalles técnicos',
+  loadingDocument: (locale) => `Cargando ${locale}…`,
 }

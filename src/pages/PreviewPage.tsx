@@ -2,24 +2,24 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useServices } from '../app/services'
 import type { FilledDocument, FormView } from '../domain/types'
+import { useI18n } from '../i18n/context'
 import { previewPrintMessage } from '../preview/renderer'
 import type { PreviewResult } from '../preview/types'
-import { strings } from '../strings'
 import { bytesToBlob, downloadBlob } from '../ui/download'
-import { messageOf } from '../ui/errors'
 import NotFoundPage from './NotFoundPage'
 import { previewStorageKey } from './previewStorage'
 
 export default function PreviewPage() {
   const { route = '' } = useParams()
   const { forms, preview } = useServices()
+  const { messages } = useI18n()
   const [form, setForm] = useState<FormView | null | undefined>(undefined)
   const [documents, setDocuments] = useState<FilledDocument[]>([])
   const [zip, setZip] = useState<{ blob: Blob; filename: string } | null>(null)
   const [activeLocale, setActiveLocale] = useState<string | null>(null)
   const [results, setResults] = useState<Map<string, PreviewResult>>(() => new Map())
   const [loadingLocale, setLoadingLocale] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
   const [noAnswers, setNoAnswers] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
@@ -38,7 +38,7 @@ export default function PreviewPage() {
         setActiveLocale(null)
         setResults(new Map())
         setLoadingLocale(null)
-        setError(null)
+        setFailed(false)
         setNoAnswers(false)
 
         const loaded = await forms.get(route)
@@ -65,9 +65,9 @@ export default function PreviewPage() {
         setDocuments(set.documents)
         setZip(set.zip)
         setActiveLocale(set.documents[0]?.locale ?? null)
-      } catch (previewError) {
+      } catch {
         if (!cancelled) {
-          setError(messageOf(previewError, strings.previewUnavailable))
+          setFailed(true)
         }
       }
     }
@@ -108,7 +108,10 @@ export default function PreviewPage() {
           setResults((current) =>
             new Map(current).set(activeLocale, {
               kind: 'unavailable',
-              reason: messageOf(renderError, strings.previewUnavailable),
+              reason:
+                renderError instanceof Error
+                  ? renderError.message
+                  : messages.previewUnavailable,
             }),
           )
         }
@@ -123,42 +126,43 @@ export default function PreviewPage() {
     return () => {
       cancelled = true
     }
-  }, [activeLocale, documents, preview, results])
+  }, [activeLocale, documents, messages.previewUnavailable, preview, results])
 
-  if (error !== null && form === undefined) {
+  if (failed && form === undefined) {
     return (
       <section className="page">
-        <h1>{strings.previewUnavailable}</h1>
-        <p className="muted">{error}</p>
+        <h1>{messages.previewUnavailable}</h1>
+        <p className="muted">{messages.errorDetail}</p>
         <Link className="button-link" to={`/f/${route}`}>
-          {strings.backToForm}
+          {messages.backToForm}
         </Link>
       </section>
     )
   }
 
   if (form === undefined) {
-    return <p className="muted">{strings.loading}</p>
+    return <p className="muted">{messages.loading}</p>
   }
 
   if (form === null) {
-    return <NotFoundPage title={strings.notFoundTitle} body={strings.notFoundBody} />
+    return <NotFoundPage />
   }
 
   if (noAnswers) {
     return (
       <section className="page">
-        <h1>{strings.previewTitle}</h1>
-        <p className="muted">{strings.previewNeedsAnswers}</p>
+        <h1>{messages.previewTitle}</h1>
+        <p className="muted">{messages.previewNeedsAnswers}</p>
         <Link className="button-link" to={`/f/${route}`}>
-          {strings.backToForm}
+          {messages.backToForm}
         </Link>
       </section>
     )
   }
 
   const activeDocument = documents.find((item) => item.locale === activeLocale)
-  const activeResult = activeLocale === null ? null : results.get(activeLocale) ?? null
+  const activeResult =
+    activeLocale === null ? null : (results.get(activeLocale) ?? null)
   const download = () => {
     if (zip !== null) {
       downloadBlob(zip.blob, zip.filename)
@@ -175,13 +179,13 @@ export default function PreviewPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            <Link to={`/f/${route}`}>{strings.backToForm}</Link>
+            <Link to={`/f/${route}`}>{messages.backToForm}</Link>
           </p>
-          <h1>{strings.previewTitle}</h1>
+          <h1>{messages.previewTitle}</h1>
           <p className="muted">
             {form.variantCount > 1
-              ? strings.previewNoticePlural
-              : strings.previewNotice}
+              ? messages.previewNoticePlural
+              : messages.previewNotice}
           </p>
         </div>
         <div className="upload-actions">
@@ -192,7 +196,7 @@ export default function PreviewPage() {
             }
             disabled={activeResult?.kind !== 'html'}
           >
-            {strings.print}
+            {messages.print}
           </button>
           <button
             type="button"
@@ -200,13 +204,17 @@ export default function PreviewPage() {
             onClick={download}
             disabled={zip === null && activeDocument === undefined}
           >
-            {zip !== null ? strings.downloadDocuments : strings.download}
+            {zip !== null ? messages.downloadDocuments : messages.download}
           </button>
         </div>
       </div>
 
       {documents.length > 1 && (
-        <div className="preview-tabs" role="tablist" aria-label={strings.languageVariants}>
+        <div
+          className="preview-tabs"
+          role="tablist"
+          aria-label={messages.languageVariants}
+        >
           {documents.map((document) => (
             <button
               key={document.locale}
@@ -222,26 +230,34 @@ export default function PreviewPage() {
         </div>
       )}
 
-      {error !== null && (
+      {failed && (
         <div className="errors" role="alert">
-          {error}
+          <strong>{messages.errorsTitle}</strong>
+          <p>{messages.errorDetail}</p>
         </div>
       )}
 
-      {activeResult === null && error === null && (
+      {activeResult === null && !failed && (
         <p className="muted">
           {loadingLocale === null
-            ? strings.loading
-            : `${strings.loading} ${loadingLocale}…`}
+            ? messages.loading
+            : messages.loadingDocument(loadingLocale)}
         </p>
       )}
 
       {activeResult?.kind === 'unavailable' && (
         <div className="notice" role="status">
-          <p>{strings.previewUnavailable}</p>
-          <p className="muted">{activeResult.reason}</p>
-          <button type="button" onClick={download} disabled={zip === null && activeDocument === undefined}>
-            {strings.downloadInstead}
+          <p>{messages.previewUnavailable}</p>
+          <details className="technical-details">
+            <summary>{messages.technicalDetails}</summary>
+            <p className="muted">{activeResult.reason}</p>
+          </details>
+          <button
+            type="button"
+            onClick={download}
+            disabled={zip === null && activeDocument === undefined}
+          >
+            {messages.downloadInstead}
           </button>
         </div>
       )}
@@ -251,7 +267,7 @@ export default function PreviewPage() {
           key={activeLocale}
           ref={iframeRef}
           className="preview-frame"
-          title={strings.previewTitle}
+          title={messages.previewTitle}
           sandbox="allow-scripts"
           srcDoc={activeResult.html}
         />

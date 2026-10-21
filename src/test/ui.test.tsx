@@ -353,6 +353,156 @@ describe('PreviewPage', () => {
     expect(frame.tagName).toBe('IFRAME')
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
   })
+
+  it('localizes preview chrome and keeps document-language tabs independent', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const preview: PreviewRenderer = {
+      render: async () => ({
+        kind: 'html',
+        html: '<!doctype html><html><body>Preview</body></html>',
+      }),
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview }}
+          >
+            <App />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const frame = await screen.findByTitle('Approximate preview')
+    expect(frame).toBeInTheDocument()
+    expect(
+      screen.getByRole('tab', { name: 'en' }),
+    ).toHaveAttribute('aria-selected', 'true')
+
+    await userEvent.selectOptions(
+      screen.getByLabelText('Interface language'),
+      'es',
+    )
+
+    expect(
+      await screen.findByTitle('Vista previa aproximada'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('tab', { name: 'en' }),
+    ).toHaveAttribute('aria-selected', 'true')
+    expect(
+      screen.getByRole('tablist', { name: 'Idiomas de los documentos' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Descargar documentos rellenos' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Imprimir' }),
+    ).toBeInTheDocument()
+  })
+
+  it('puts the raw preview failure reason behind localized technical details', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const preview: PreviewRenderer = {
+      render: async () => ({
+        kind: 'unavailable',
+        reason: 'raw engine failure',
+      }),
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText(
+        'No se pudo renderizar la vista previa de este documento.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Detalles técnicos')).toBeInTheDocument()
+    expect(screen.getByText('raw engine failure')).toBeInTheDocument()
+  })
+
+  it('localizes preview chrome in Basque', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const preview: PreviewRenderer = {
+      render: async () => ({
+        kind: 'html',
+        html: '<!doctype html><html><body>Preview</body></html>',
+      }),
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="eu">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByTitle('Aurrebista gutxi gorabeherakoa'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('tablist', { name: 'Dokumentuen hizkuntzak' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Inprimatu' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Deskargatu betetako dokumentuak' }),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes the no-answers preview state', async () => {
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview: fakePreview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByText(
+        'Rellena el formulario primero para previsualizar un documento.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Volver al formulario' }),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('App shell', () => {

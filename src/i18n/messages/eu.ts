@@ -75,4 +75,17 @@ export const eu: Messages = {
   downloadDocuments: 'Deskargatu betetako dokumentuak',
   preview: 'Aurrebista',
   leaveWarning: 'Gorde gabeko erantzunak dituzu. Orrialde hau utzi nahi duzu?',
+  previewTitle: 'Aurrebista gutxi gorabeherakoa',
+  previewNotice:
+    'Aurrebista hau gutxi gorabeherakoa da. Deskargatu betetako dokumentua emaitza zehatza lortzeko.',
+  previewNoticePlural:
+    'Aurrebista hau gutxi gorabeherakoa da. Deskargatu betetako dokumentuak emaitza zehatzak lortzeko.',
+  print: 'Inprimatu',
+  downloadInstead: 'Deskargatu horren ordez',
+  previewUnavailable: 'Ezin izan da dokumentu honen aurrebista bistaratu.',
+  previewNeedsAnswers:
+    'Bete formularioa lehenengo dokumentu baten aurrebista ikusteko.',
+  backToForm: 'Itzuli formulariora',
+  technicalDetails: 'Xehetasun teknikoak',
+  loadingDocument: (locale) => `${locale} kargatzen…`,
 }
