@@ -124,6 +124,26 @@ button.danger:hover:not(:disabled) {
   font-size: 0.92rem;
 }
 
+.interface-language {
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.interface-language select {
+  width: auto;
+  min-width: 8.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.86rem;
+  background: var(--paper);
+}
+
 .app-main {
   width: min(72rem, 100%);
   margin: 0 auto;
@@ -524,6 +544,16 @@ code {
 
   .form-actions > *,
   .upload-actions > * {
+    flex: 1;
+  }
+
+  .interface-language {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .interface-language select {
     flex: 1;
   }
 }

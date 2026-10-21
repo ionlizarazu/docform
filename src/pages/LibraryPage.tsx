@@ -2,14 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useServices } from '../app/services'
 import type { FormSummary, TemplateError } from '../domain/types'
-import { strings } from '../strings'
+import { useI18n } from '../i18n/context'
+import { localizeError } from '../i18n/errors'
 import { downloadBlob } from '../ui/download'
-import { messageOf } from '../ui/errors'
 import { NewFormPanel } from '../ui/NewFormPanel'
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleString()
-}
 
 function FormRow({
   form,
@@ -22,6 +18,7 @@ function FormRow({
   onDelete: (route: string) => Promise<void>
   onExport: (route: string) => Promise<void>
 }) {
+  const { messages, formatDate } = useI18n()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(form.displayName)
   const [busy, setBusy] = useState(false)
@@ -43,14 +40,16 @@ function FormRow({
       <div className="form-row-main">
         {editing ? (
           <div className="rename-row">
-            <label htmlFor={`rename-${form.route}`}>{strings.formNameLabel}</label>
+            <label htmlFor={`rename-${form.route}`}>
+              {messages.formNameLabel}
+            </label>
             <input
               id={`rename-${form.route}`}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
             <button type="button" onClick={save} disabled={busy}>
-              {strings.save}
+              {messages.save}
             </button>
             <button
               type="button"
@@ -60,7 +59,7 @@ function FormRow({
                 setEditing(false)
               }}
             >
-              {strings.cancel}
+              {messages.cancel}
             </button>
           </div>
         ) : (
@@ -70,41 +69,47 @@ function FormRow({
         )}
         <div className="form-meta">
           <span>
-            {strings.routeLabel}: <code>/f/{form.route.slice(0, 12)}…</code>
+            {messages.routeLabel}: <code>/f/{form.route.slice(0, 12)}…</code>
           </span>
           <span>
-            {strings.uploadedLabel}: {formatDate(form.createdAt)}
+            {messages.uploadedLabel}: {formatDate(form.createdAt)}
           </span>
           {form.locales.map((locale) => (
             <span className="badge" key={locale}>
-              {locale === 'und' ? 'single' : locale}
+              {locale === 'und' ? messages.singleLanguage : locale}
             </span>
           ))}
           {form.variantCount > 1 && (
-            <span className="muted">{form.variantCount} languages</span>
+            <span className="muted">
+              {messages.languageCount(form.variantCount)}
+            </span>
           )}
         </div>
       </div>
       <div className="form-actions">
         <Link className="button-link" to={`/f/${form.route}`}>
-          {strings.openForm}
+          {messages.openForm}
         </Link>
         <button type="button" className="secondary" onClick={() => setEditing(true)}>
-          {strings.rename}
+          {messages.rename}
         </button>
-        <button type="button" className="secondary" onClick={() => void onExport(form.route)}>
-          {strings.export}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => void onExport(form.route)}
+        >
+          {messages.export}
         </button>
         <button
           type="button"
           className="danger"
           onClick={() => {
-            if (window.confirm(strings.deleteConfirm)) {
+            if (window.confirm(messages.deleteConfirm)) {
               void onDelete(form.route)
             }
           }}
         >
-          {strings.delete}
+          {messages.delete}
         </button>
       </div>
     </li>
@@ -113,6 +118,7 @@ function FormRow({
 
 export default function LibraryPage() {
   const { forms } = useServices()
+  const { messages } = useI18n()
   const navigate = useNavigate()
   const [items, setItems] = useState<FormSummary[]>([])
   const [errors, setErrors] = useState<TemplateError[]>([])
@@ -133,14 +139,9 @@ export default function LibraryPage() {
           setItems(loaded)
         }
       })
-      .catch((error) => {
+      .catch(() => {
         if (!cancelled) {
-          setErrors([
-            {
-              code: 'invalid-format',
-              message: messageOf(error, strings.loadFailed),
-            },
-          ])
+          setErrors([{ code: 'invalid-format', message: '' }])
         }
       })
     return () => {
@@ -159,13 +160,8 @@ export default function LibraryPage() {
       }
       await refresh()
       navigate(`/f/${result.route}?detected=1`)
-    } catch (error) {
-      setErrors([
-        {
-          code: 'invalid-package',
-          message: error instanceof Error ? error.message : strings.unsupportedUpload,
-        },
-      ])
+    } catch {
+      setErrors([{ code: 'invalid-package', message: '' }])
     } finally {
       setBusy(false)
     }
@@ -176,13 +172,8 @@ export default function LibraryPage() {
     try {
       const exported = await forms.exportPackage(route)
       downloadBlob(exported.blob, exported.filename)
-    } catch (error) {
-      setErrors([
-        {
-          code: 'not-found',
-          message: error instanceof Error ? error.message : strings.unsupportedUpload,
-        },
-      ])
+    } catch {
+      setErrors([{ code: 'not-found', message: '' }])
     }
   }
 
@@ -190,8 +181,8 @@ export default function LibraryPage() {
     <section className="page">
       <div className="page-heading">
         <div>
-          <h1>{strings.libraryTitle}</h1>
-          <p className="muted">{strings.librarySubtitle}</p>
+          <h1>{messages.libraryTitle}</h1>
+          <p className="muted">{messages.librarySubtitle}</p>
         </div>
         <div className="upload-actions">
           <button
@@ -202,7 +193,7 @@ export default function LibraryPage() {
             }}
             disabled={busy}
           >
-            {strings.upload}
+            {messages.upload}
           </button>
           <input
             ref={importRef}
@@ -223,12 +214,12 @@ export default function LibraryPage() {
             onClick={() => importRef.current?.click()}
             disabled={busy}
           >
-            {strings.importPackage}
+            {messages.importPackage}
           </button>
         </div>
       </div>
 
-      <p className="hint">{strings.uploadHint}</p>
+      <p className="hint">{messages.uploadHint}</p>
 
       {showNewForm && (
         <NewFormPanel
@@ -247,10 +238,12 @@ export default function LibraryPage() {
 
       {errors.length > 0 && (
         <div className="errors" role="alert">
-          <strong>{strings.unsupportedUpload}</strong>
+          <strong>{messages.errorsTitle}</strong>
           <ul>
             {errors.map((error, index) => (
-              <li key={`${error.code}-${index}`}>{error.message}</li>
+              <li key={`${error.code}-${index}`}>
+                {localizeError(error, messages, messages.errorDetail)}
+              </li>
             ))}
           </ul>
         </div>
@@ -258,7 +251,7 @@ export default function LibraryPage() {
 
       {items.length === 0 ? (
         <div className="empty-state">
-          <p>{strings.libraryEmpty}</p>
+          <p>{messages.libraryEmpty}</p>
         </div>
       ) : (
         <ul className="form-list">
@@ -270,27 +263,17 @@ export default function LibraryPage() {
                 try {
                   await forms.rename(route, name)
                   await refresh()
-                } catch (error) {
-                  setErrors([
-                    {
-                      code: 'invalid-format',
-                      message: messageOf(error, strings.loadFailed),
-                    },
-                  ])
-                  throw error
+                } catch {
+                  setErrors([{ code: 'invalid-format', message: '' }])
+                  throw new Error('rename failed')
                 }
               }}
               onDelete={async (route) => {
                 try {
                   await forms.remove(route)
                   await refresh()
-                } catch (error) {
-                  setErrors([
-                    {
-                      code: 'invalid-format',
-                      message: messageOf(error, strings.loadFailed),
-                    },
-                  ])
+                } catch {
+                  setErrors([{ code: 'invalid-format', message: '' }])
                 }
               }}
               onExport={handleExport}

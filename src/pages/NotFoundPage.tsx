@@ -1,19 +1,21 @@
 import { Link } from 'react-router-dom'
-import { strings } from '../strings'
+import { useI18n } from '../i18n/context'
 
 export default function NotFoundPage({
-  title = strings.notFoundTitle,
-  body = strings.notFoundBody,
+  title,
+  body,
 }: {
   title?: string
   body?: string
 }) {
+  const { messages } = useI18n()
+
   return (
     <section className="page">
-      <h1>{title}</h1>
-      <p className="muted">{body}</p>
+      <h1>{title ?? messages.notFoundTitle}</h1>
+      <p className="muted">{body ?? messages.notFoundBody}</p>
       <Link className="button-link" to="/">
-        {strings.backToLibrary}
+        {messages.backToLibrary}
       </Link>
     </section>
   )

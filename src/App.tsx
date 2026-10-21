@@ -1,22 +1,42 @@
 import { Link, Route, Routes } from 'react-router-dom'
-import { strings } from './strings'
+import { useI18n } from './i18n/context'
+import { INTERFACE_LOCALES, LANGUAGE_NAMES } from './i18n/locales'
+import type { InterfaceLocale } from './i18n/locales'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import FormPage from './pages/FormPage'
 import LibraryPage from './pages/LibraryPage'
 import NotFoundPage from './pages/NotFoundPage'
 import PreviewPage from './pages/PreviewPage'
+import UnexpectedErrorPage from './pages/UnexpectedErrorPage'
 
 export default function App() {
+  const { locale, setLocale, messages } = useI18n()
+
   return (
     <div className="app-shell">
       <header className="app-header">
         <Link to="/" className="brand">
-          {strings.appName}
+          {messages.appName}
         </Link>
-        <p className="tagline">{strings.appTagline}</p>
+        <p className="tagline">{messages.appTagline}</p>
+        <label className="interface-language">
+          <span>{messages.interfaceLanguage}</span>
+          <select
+            value={locale}
+            onChange={(event) =>
+              setLocale(event.target.value as InterfaceLocale)
+            }
+          >
+            {INTERFACE_LOCALES.map((value) => (
+              <option key={value} value={value} lang={value}>
+                {LANGUAGE_NAMES[value]}
+              </option>
+            ))}
+          </select>
+        </label>
       </header>
       <main className="app-main">
-        <ErrorBoundary>
+        <ErrorBoundary fallback={<UnexpectedErrorPage />}>
           <Routes>
             <Route path="/" element={<LibraryPage />} />
             <Route path="/f/:route" element={<FormPage />} />
@@ -25,8 +45,8 @@ export default function App() {
               path="*"
               element={
                 <NotFoundPage
-                  title={strings.unknownRouteTitle}
-                  body={strings.unknownRouteBody}
+                  title={messages.unknownRouteTitle}
+                  body={messages.unknownRouteBody}
                 />
               }
             />

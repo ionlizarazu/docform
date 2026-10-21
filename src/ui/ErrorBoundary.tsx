@@ -1,10 +1,9 @@
 import { Component } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { strings } from '../strings'
 
 interface ErrorBoundaryProps {
   children: ReactNode
+  fallback: ReactNode
 }
 
 interface ErrorBoundaryState {
@@ -20,15 +19,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (this.state.hasError) {
-      return (
-        <section className="page">
-          <h1>{strings.errorTitle}</h1>
-          <p className="muted">{strings.errorBody}</p>
-          <Link className="button-link" to="/">
-            {strings.backToLibrary}
-          </Link>
-        </section>
-      )
+      return this.props.fallback
     }
     return this.props.children
   }

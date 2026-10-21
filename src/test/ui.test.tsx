@@ -2,13 +2,18 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import App from '../App'
 import { ServicesProvider } from '../app/ServicesProvider'
 import type { FormsApi } from '../app/TemplateForms'
 import type { FormSummary, FormView } from '../domain/types'
+import { I18nProvider } from '../i18n/I18nProvider'
+import { INTERFACE_LOCALE_STORAGE_KEY } from '../i18n/locales'
+import type { InterfaceLocale } from '../i18n/locales'
 import type { PreviewRenderer } from '../preview/types'
 import FormPage from '../pages/FormPage'
 import LibraryPage from '../pages/LibraryPage'
 import PreviewPage from '../pages/PreviewPage'
+import UnexpectedErrorPage from '../pages/UnexpectedErrorPage'
 import { previewStorageKey } from '../pages/previewStorage'
 
 const summary: FormSummary = {
@@ -19,6 +24,15 @@ const summary: FormSummary = {
   locales: ['en', 'es'],
   variantCount: 2,
   createdAt: '2026-01-01T00:00:00.000Z',
+}
+
+const summarySingle: FormSummary = {
+  ...summary,
+  route: 'def456',
+  displayName: 'Legacy contract',
+  primaryLocale: 'und',
+  locales: ['und'],
+  variantCount: 1,
 }
 
 const view: FormView = {
@@ -97,11 +111,13 @@ function makeForms(overrides: Partial<FormsApi> = {}): FormsApi {
 function renderFormPage(forms: FormsApi, entry = '/f/abc123') {
   return render(
     <MemoryRouter initialEntries={[entry]}>
-      <ServicesProvider value={{ forms, preview: fakePreview }}>
-        <Routes>
-          <Route path="/f/:route" element={<FormPage />} />
-        </Routes>
-      </ServicesProvider>
+      <I18nProvider initialLocale="en">
+        <ServicesProvider value={{ forms, preview: fakePreview }}>
+          <Routes>
+            <Route path="/f/:route" element={<FormPage />} />
+          </Routes>
+        </ServicesProvider>
+      </I18nProvider>
     </MemoryRouter>,
   )
 }
@@ -110,11 +126,16 @@ describe('LibraryPage', () => {
   it('lists stored forms and offers upload and import', async () => {
     render(
       <MemoryRouter>
-        <ServicesProvider
-          value={{ forms: makeForms({ list: async () => [summary] }), preview: fakePreview }}
-        >
-          <LibraryPage />
-        </ServicesProvider>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary] }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
       </MemoryRouter>,
     )
 
@@ -127,11 +148,11 @@ describe('LibraryPage', () => {
   it('opens the bilingual new-form panel', async () => {
     render(
       <MemoryRouter>
-        <ServicesProvider
-          value={{ forms: makeForms(), preview: fakePreview }}
-        >
-          <LibraryPage />
-        </ServicesProvider>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider value={{ forms: makeForms(), preview: fakePreview }}>
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
       </MemoryRouter>,
     )
 
@@ -214,18 +235,131 @@ describe('PreviewPage', () => {
 
     render(
       <MemoryRouter initialEntries={['/f/abc123/preview']}>
-        <ServicesProvider
-          value={{ forms: makeForms({ get: async () => view }), preview }}
-        >
-          <Routes>
-            <Route path="/f/:route/preview" element={<PreviewPage />} />
-          </Routes>
-        </ServicesProvider>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
       </MemoryRouter>,
     )
 
     const frame = await screen.findByTitle('Approximate preview')
     expect(frame.tagName).toBe('IFRAME')
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
+  })
+})
+
+describe('App shell', () => {
+  function renderApp(entry = '/', locale?: InterfaceLocale) {
+    return render(
+      <MemoryRouter initialEntries={[entry]}>
+        <I18nProvider initialLocale={locale}>
+          <ServicesProvider value={{ forms: makeForms(), preview: fakePreview }}>
+            <App />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  it('switches the interface between Euskara, Español, and English', async () => {
+    renderApp('/', 'en')
+
+    expect(screen.getByRole('heading', { name: 'Your forms' })).toBeInTheDocument()
+    const select = screen.getByRole('combobox')
+
+    await userEvent.selectOptions(select, 'es')
+    expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
+    expect(document.documentElement.lang).toBe('es')
+
+    await userEvent.selectOptions(select, 'eu')
+    expect(
+      screen.getByRole('heading', { name: 'Zure formularioak' }),
+    ).toBeInTheDocument()
+    expect(document.documentElement.lang).toBe('eu')
+  })
+
+  it('restores the saved interface locale', async () => {
+    localStorage.setItem(INTERFACE_LOCALE_STORAGE_KEY, 'eu')
+    renderApp('/')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Zure formularioak' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox')).toHaveValue('eu')
+  })
+
+  it('keeps rendering when storage cannot be read', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+
+    renderApp('/')
+
+    expect(screen.getByRole('heading', { name: 'Your forms' })).toBeInTheDocument()
+  })
+
+  it('keeps the in-memory choice when storage cannot be written', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+
+    renderApp('/', 'en')
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'es')
+
+    expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
+  })
+
+  it('localizes the library, counts, and single-language badge', async () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary, summarySingle] }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Tus formularios')).toBeInTheDocument()
+    expect(screen.getByText('2 idiomas')).toBeInTheDocument()
+    expect(screen.getByText('Idioma único')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /nuevo formulario/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /importar paquete/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes the unknown-route page', async () => {
+    renderApp('/missing', 'es')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Página no encontrada' }),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes the unexpected-error fallback', () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="eu">
+          <UnexpectedErrorPage />
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      screen.getByRole('heading', { name: 'Zerbait gaizki joan da' }),
+    ).toBeInTheDocument()
   })
 })

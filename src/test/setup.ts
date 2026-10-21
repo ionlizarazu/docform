@@ -6,6 +6,8 @@ import { webcrypto } from 'node:crypto'
 
 afterEach(() => {
   cleanup()
+  localStorage.clear()
+  document.documentElement.lang = 'en'
 })
 
 if (!globalThis.crypto?.subtle) {
