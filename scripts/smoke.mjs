@@ -1,11 +1,25 @@
 import { spawn } from 'node:child_process'
+import { createServer } from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import JSZip from 'jszip'
 import { chromium } from 'playwright-core'
 
 const outDir = '/tmp/opencode/docform-smoke'
-const baseUrl = 'http://127.0.0.1:4173'
+const pagesMode = process.argv.includes('--pages')
+const baseUrl = pagesMode
+  ? 'http://127.0.0.1:4173/docform/'
+  : 'http://127.0.0.1:4173'
+const MIME_TYPES = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.wasm': 'application/wasm',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+}
 const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 const OFFICE_NS = 'urn:oasis:names:tc:opendocument:xmlns:office:1.0'
 const TEXT_NS = 'urn:oasis:names:tc:opendocument:xmlns:text:1.0'
@@ -92,6 +106,69 @@ async function makeOdt(filePath) {
   await writeFile(filePath, await zip.generateAsync({ type: 'nodebuffer' }))
 }
 
+async function startPagesServer(port) {
+  const distDir = path.resolve('dist')
+  const entry = path.join(distDir, 'index.html')
+  const fallback = path.join(distDir, '404.html')
+
+  try {
+    await readFile(entry)
+    await readFile(fallback)
+  } catch {
+    throw new Error(
+      'The Pages artifact is missing. Run npm run build:pages before npm run smoke:pages.',
+    )
+  }
+
+  const server = createServer(async (request, response) => {
+    try {
+      const url = new URL(request.url ?? '/', 'http://127.0.0.1')
+      const pathname = decodeURIComponent(url.pathname)
+      if (pathname === '/docform') {
+        response.writeHead(301, { Location: '/docform/' })
+        response.end()
+        return
+      }
+      if (!pathname.startsWith('/docform/')) {
+        response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+        response.end('Not found')
+        return
+      }
+
+      let relative = pathname.slice('/docform'.length)
+      if (relative === '' || relative === '/') {
+        relative = '/index.html'
+      }
+      const filePath = path.join(distDir, relative)
+      if (!filePath.startsWith(`${distDir}${path.sep}`)) {
+        throw new Error('Path escaped the Pages artifact')
+      }
+
+      try {
+        const content = await readFile(filePath)
+        const type =
+          MIME_TYPES[path.extname(filePath).toLowerCase()] ??
+          'application/octet-stream'
+        response.writeHead(200, { 'Content-Type': type })
+        response.end(content)
+      } catch {
+        const content = await readFile(fallback)
+        response.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' })
+        response.end(content)
+      }
+    } catch (error) {
+      response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
+      response.end(String(error))
+    }
+  })
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', resolve)
+  })
+  return server
+}
+
 async function waitForServer(url, timeoutMs = 30000) {
   const started = Date.now()
   while (Date.now() - started < timeoutMs) {
@@ -115,29 +192,52 @@ async function main() {
   await makeDocx(docxPath)
   await makeOdt(odtPath)
 
-  const server = spawn('npm', ['run', 'dev', '--', '--port', '4173', '--strictPort'], {
-    cwd: process.cwd(),
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env },
-  })
+  const pagesServer = pagesMode ? await startPagesServer(4173) : null
+  const server = pagesMode
+    ? null
+    : spawn('npm', ['run', 'dev', '--', '--port', '4173', '--strictPort'], {
+        cwd: process.cwd(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env },
+      })
   let serverLog = ''
-  server.stdout.on('data', (chunk) => {
-    serverLog += chunk.toString()
-  })
-  server.stderr.on('data', (chunk) => {
-    serverLog += chunk.toString()
-  })
+  if (server !== null) {
+    server.stdout.on('data', (chunk) => {
+      serverLog += chunk.toString()
+    })
+    server.stderr.on('data', (chunk) => {
+      serverLog += chunk.toString()
+    })
+  }
 
   const browser = await chromium.launch({
-    executablePath: '/usr/bin/google-chrome',
+    executablePath: process.env.CHROME_PATH ?? '/usr/bin/google-chrome',
     headless: true,
     args: ['--no-sandbox'],
   })
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   const consoleErrors = []
+  const failedResponses = []
+  let allowDocument404 = false
+  let expectedFallbackUrl = null
   page.on('console', (message) => {
     if (message.type() === 'error') {
+      if (
+        pagesMode &&
+        allowDocument404 &&
+        message.text().includes('status of 404')
+      ) {
+        return
+      }
       consoleErrors.push(message.text())
+    }
+  })
+  page.on('response', (response) => {
+    if (
+      response.status() >= 400 &&
+      response.url() !== expectedFallbackUrl
+    ) {
+      failedResponses.push(`${response.status()} ${response.url()}`)
     }
   })
   page.on('pageerror', (error) => {
@@ -190,6 +290,17 @@ async function main() {
     await page.screenshot({ path: path.join(outDir, '02-detected.png'), fullPage: true })
 
     await page.getByRole('link', { name: 'Open form' }).click()
+    await page.getByLabel('Name').waitFor()
+
+    const formUrl = page.url().split('?')[0]
+    expectedFallbackUrl = formUrl
+    allowDocument404 = true
+    await page.goto(formUrl)
+    await page.getByLabel('Name').waitFor()
+    await page.waitForTimeout(500)
+    allowDocument404 = false
+    expectedFallbackUrl = null
+
     await page.getByLabel('Name').fill('Ada Lovelace')
     await page.getByLabel('Role').fill('Analyst')
     await page.getByLabel('Country').selectOption('France')
@@ -261,6 +372,9 @@ async function main() {
     if (odtNotice > 0) {
       throw new Error(`ODT preview failed: ${odtReason}`)
     }
+    if (failedResponses.length > 0) {
+      throw new Error(`Failed network responses: ${failedResponses.join(' | ')}`)
+    }
     if (consoleErrors.length > 0) {
       throw new Error(`Browser console errors: ${consoleErrors.join(' | ')}`)
     }
@@ -282,11 +396,15 @@ async function main() {
     )
   } finally {
     await browser.close()
-    server.kill('SIGTERM')
+    if (pagesServer !== null) {
+      await new Promise((resolve) => pagesServer.close(resolve))
+    } else if (server !== null) {
+      server.kill('SIGTERM')
+    }
     if (consoleErrors.length > 0) {
       console.error('Console errors:', consoleErrors)
     }
-    if (!serverLog.includes('ready in')) {
+    if (server !== null && !serverLog.includes('ready in')) {
       console.error('Server log:', serverLog.slice(-2000))
     }
   }
