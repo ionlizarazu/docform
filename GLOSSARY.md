@@ -21,8 +21,16 @@ The variant whose labels, field order, and select options the filler sees.
 _Avoid_: Main template, base file
 
 **Locale**:
-A language tag such as `en`, `es`, `eu`, or `en-GB`.
+A language tag such as `en`, `es`, `eu`, or `en-GB`. A document language and an interface locale are both locales, but they are chosen separately.
 _Avoid_: Language code, selector
+
+**Document language**:
+The language of a template, its labels and options, and its filled document.
+_Avoid_: Form language, template language (when ambiguous)
+
+**Interface locale**:
+The language of the app chrome, validation, dates, and assistive labels. It is independent of document languages.
+_Avoid_: UI language, app language (when ambiguous)
 
 **Option pairing**:
 The positional correspondence between the options of the same select field across variants.

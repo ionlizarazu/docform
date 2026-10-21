@@ -149,6 +149,39 @@ async function main() {
     await page.goto(baseUrl)
     await page.screenshot({ path: path.join(outDir, '01-library.png'), fullPage: true })
 
+    const interfaceLanguage = page.getByRole('combobox')
+    await interfaceLanguage.selectOption('eu')
+    await page.getByRole('heading', { name: 'Zure formularioak' }).waitFor()
+    if ((await page.locator('html').getAttribute('lang')) !== 'eu') {
+      throw new Error('The document lang did not update to Basque')
+    }
+    if ((await page.getByRole('button', { name: 'Formulario berria' }).count()) === 0) {
+      throw new Error('The Basque library chrome did not render')
+    }
+    await page.screenshot({
+      path: path.join(outDir, '01-library-eu.png'),
+      fullPage: true,
+    })
+
+    await interfaceLanguage.selectOption('es')
+    await page.getByRole('heading', { name: 'Tus formularios' }).waitFor()
+    if ((await page.locator('html').getAttribute('lang')) !== 'es') {
+      throw new Error('The document lang did not update to Spanish')
+    }
+    if ((await page.getByRole('button', { name: 'Nuevo formulario' }).count()) === 0) {
+      throw new Error('The Spanish library chrome did not render')
+    }
+    await page.screenshot({
+      path: path.join(outDir, '01-library-es.png'),
+      fullPage: true,
+    })
+
+    await interfaceLanguage.selectOption('en')
+    await page.getByRole('heading', { name: 'Your forms' }).waitFor()
+    if ((await page.locator('html').getAttribute('lang')) !== 'en') {
+      throw new Error('The document lang did not return to English')
+    }
+
     await page.getByRole('button', { name: 'New form' }).click()
     await page.getByLabel('Template 1').setInputFiles(docxPath)
     await page.getByLabel('Template 2').setInputFiles(odtPath)

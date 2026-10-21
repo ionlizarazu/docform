@@ -36,6 +36,28 @@ const summarySingle: FormSummary = {
   variantCount: 1,
 }
 
+const viewSingle: FormView = {
+  ...summary,
+  route: 'ghi789',
+  displayName: 'Legacy contract',
+  originalFilename: 'legacy.docx',
+  primaryLocale: 'und',
+  locales: ['und'],
+  variantCount: 1,
+  definition: {
+    route: 'ghi789',
+    primaryLocale: 'und',
+    variants: [
+      {
+        locale: 'und',
+        format: 'docx',
+        templateHash: 'c'.repeat(64),
+        fields: [{ label: 'Name', kind: 'text' }],
+      },
+    ],
+  },
+}
+
 const view: FormView = {
   ...summary,
   definition: {
@@ -212,6 +234,32 @@ describe('LibraryPage', () => {
     expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
   })
 
+  it('localizes the delete confirmation', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary] }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Eliminar' }),
+    )
+
+    expect(confirm).toHaveBeenCalledWith(
+      '¿Eliminar este formulario? Se eliminarán sus plantillas y su ruta.',
+    )
+  })
+
   it('localizes library list failures', async () => {
     render(
       <MemoryRouter>
@@ -340,6 +388,21 @@ describe('FormPage', () => {
     expect(screen.getByText('Idioma principal')).toBeInTheDocument()
   })
 
+  it('localizes the detected screen in Basque', async () => {
+    renderFormPage(
+      makeForms({ get: async () => view }),
+      '/f/abc123?detected=1',
+      'eu',
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Detektatutako eremuak' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Dokumentuen hizkuntzak')).toBeInTheDocument()
+    expect(screen.getByText('Testua')).toBeInTheDocument()
+    expect(screen.getByText('Hautaketa')).toBeInTheDocument()
+  })
+
   it('explains an unknown route', async () => {
     renderFormPage(makeForms({ get: async () => null }))
 
@@ -376,6 +439,16 @@ describe('FormPage', () => {
     expect(
       screen.getByRole('button', { name: 'Aurrebista' }),
     ).toBeInTheDocument()
+  })
+
+  it('omits the document lang when the primary locale is undetermined', async () => {
+    renderFormPage(
+      makeForms({ get: async () => viewSingle }),
+      '/f/ghi789',
+      'es',
+    )
+
+    expect(await screen.findByText('Name')).not.toHaveAttribute('lang')
   })
 
   it('preserves answers when the interface language changes', async () => {
@@ -716,6 +789,10 @@ describe('App shell', () => {
 
     expect(screen.getByRole('heading', { name: 'Your forms' })).toBeInTheDocument()
     const select = screen.getByRole('combobox')
+    expect(screen.getByRole('option', { name: 'Euskara' })).toHaveAttribute(
+      'lang',
+      'eu',
+    )
 
     await userEvent.selectOptions(select, 'es')
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
@@ -938,6 +1015,17 @@ describe('App shell', () => {
     expect(
       screen.getByRole('button', { name: /importar paquete/i }),
     ).toBeInTheDocument()
+
+    const expectedDate = new Intl.DateTimeFormat('es', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(summary.createdAt))
+    expect(
+      screen.getAllByText(
+        (content, element) =>
+          element?.tagName === 'SPAN' && content.includes(expectedDate),
+      ).length,
+    ).toBeGreaterThan(0)
   })
 
   it('localizes the unknown-route page', async () => {
@@ -945,6 +1033,14 @@ describe('App shell', () => {
 
     expect(
       await screen.findByRole('heading', { name: 'Página no encontrada' }),
+    ).toBeInTheDocument()
+  })
+
+  it('localizes the unknown-route page in Basque', async () => {
+    renderApp('/missing', 'eu')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Orria ez da aurkitu' }),
     ).toBeInTheDocument()
   })
 

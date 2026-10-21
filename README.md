@@ -1,8 +1,10 @@
 # Docform
 
-A client-only React app that turns a set of DOCX or ODT templates containing `{{placeholders}}` into one fillable form and returns one filled document per language. Nothing leaves the browser.
+A client-only React app that turns a set of DOCX or ODT templates containing `{{placeholders}}` into one fillable form and returns one filled document per language. The interface is available in Basque, Spanish, and English. Nothing leaves the browser.
 
 ![The form library](docs/screenshots/library.png)
+
+![The library in Basque](docs/screenshots/library-eu.png)
 
 ## What it does
 
@@ -43,6 +45,14 @@ A form is an ordered **variant set**: one template per locale, one shared fill, 
 
 The app cannot detect two option lists that happen to have the same length but different meanings. Keep the option order aligned in every template; a count mismatch fails the upload.
 
+## Interface languages
+
+The header has an **Interface language** switcher with Euskara, Español, and English. The choice is detected from the browser on first use, remembered in browser-local storage, and used for the chrome, validation, errors, dates, counts, and accessibility labels.
+
+The interface locale is independent of document languages. Switching it never changes the primary variant, template labels or options, document-language tabs, form data, or generated documents. Template content is not translated. The app updates `<html lang>` for the interface and marks template-derived text with its document language where known.
+
+Errors are reported as stable codes with structured details and localized from typed catalogs. The English diagnostic message is for development only and is never shown. Preview failures show a localized message; the raw renderer reason sits in a collapsed “Technical details” disclosure.
+
 ![The generated form](docs/screenshots/form.png)
 
 ## Run
@@ -61,7 +71,7 @@ npm test
 npm run build
 ```
 
-`npm run smoke` drives a real Chrome through a bilingual upload, fill, ZIP download, English DOCX preview, and Spanish ODT preview using the system Chrome at `/usr/bin/google-chrome`. It writes screenshots and the filled ZIP to `/tmp/opencode/docform-smoke`.
+`npm run smoke` drives a real Chrome through the three interface languages, a bilingual upload, fill, ZIP download, English DOCX preview, and Spanish ODT preview using the system Chrome at `/usr/bin/google-chrome`. It writes screenshots and the filled ZIP to `/tmp/opencode/docform-smoke`.
 
 ## Storage and privacy
 
@@ -72,8 +82,9 @@ npm run build
 
 ## Architecture
 
-- `src/domain/` — declaration grammar, variant validation, DOCX/ODT text-node substitution, package detection, hashing.
+- `src/domain/` — declaration grammar, variant validation, DOCX/ODT text-node substitution, package detection, hashing, and structured error codes.
 - `src/app/TemplateForms.ts` — the application service the UI consumes: variant-set ingest, list, get, rename, remove, fill, export/import.
+- `src/i18n/` — interface-locale detection, typed catalogs, date/count formatting, and the error-message adapter.
 - `src/storage/` — the IndexedDB store.
 - `src/preview/` — a `PreviewRenderer` port with lazy `docx-preview` and `@opendocument/odr-core` adapters.
 - `src/pages/` — library, form, preview, and not-found pages.
@@ -92,11 +103,16 @@ Preview HTML is isolated in an opaque-origin iframe (`sandbox="allow-scripts"` w
 - All fields are optional; there are no required, conditional, or computed fields.
 - Preview is approximate. The downloaded documents are authoritative.
 - Forms are local to one browser profile; there are no share links, accounts, or collaboration.
+- The interface has three initial locales: Basque, Spanish, and English. Template content is not translated by the interface language.
+- The interface language is a browser preference, not form data; it is not carried in routes or `.formpack.json` files.
 
 ## Design docs
 
-- Spec: [`.scratch/template-form/spec.md`](.scratch/template-form/spec.md)
+- Specs:
+  - [`.scratch/template-form/spec.md`](.scratch/template-form/spec.md)
+  - [`.scratch/multilingual-interface/spec.md`](.scratch/multilingual-interface/spec.md)
 - Glossary: [`GLOSSARY.md`](GLOSSARY.md)
 - ADRs:
   - [`docs/adr/0001-inline-field-declarations.md`](docs/adr/0001-inline-field-declarations.md)
   - [`docs/adr/0002-language-variant-sets.md`](docs/adr/0002-language-variant-sets.md)
+  - [`docs/adr/0003-interface-locale-and-localized-errors.md`](docs/adr/0003-interface-locale-and-localized-errors.md)
