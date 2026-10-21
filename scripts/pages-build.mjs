@@ -17,6 +17,9 @@ if (!html.includes('/docform/assets/')) {
 if (/(?:src|href)="\/assets\//.test(html)) {
   problems.push('The built entry still contains root-absolute asset paths.')
 }
+if (!html.includes('href="/docform/favicon.svg"')) {
+  problems.push('The favicon does not reference the Pages base.')
+}
 if (html.includes('href="/favicon.svg"')) {
   problems.push('The favicon still uses the root path instead of the Pages base.')
 }
