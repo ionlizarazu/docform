@@ -25,6 +25,7 @@ import type {
   IngestResult,
   StoredForm,
   TemplateError,
+  TemplateErrorDetail,
   TemplateErrorParams,
   TemplateFormat,
   VariantDefinition,
@@ -339,7 +340,7 @@ async function computeVariantRoute(
 function failure(
   code: TemplateError['code'],
   message: string,
-  detail?: string,
+  detail?: TemplateErrorDetail,
   params?: TemplateErrorParams,
 ): IngestResult {
   return { ok: false, errors: [{ code, detail, params, message }] }

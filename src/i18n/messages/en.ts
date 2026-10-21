@@ -225,7 +225,7 @@ export const en: Messages = {
     'invalid-locale': (error) =>
       error.detail === 'multiple-primary'
         ? 'Choose exactly one primary language variant.'
-        : `"${params(error).locale ?? ''}" is not a valid locale code. Use a tag such as en, es, eu, or en-GB.`,
+        : `"${params(error).locale ?? ''}" is not a valid locale tag. Use a tag such as en, es, eu, or en-GB.`,
     'duplicate-locale': (error) =>
       `The locale "${params(error).locale ?? error.label ?? ''}" is used by more than one template.`,
     'variant-mismatch': (error) => {

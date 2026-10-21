@@ -1,4 +1,10 @@
-import type { Field, FieldKind, TemplateError, TemplateErrorParams } from './types'
+import type {
+  Field,
+  FieldKind,
+  TemplateError,
+  TemplateErrorDetail,
+  TemplateErrorParams,
+} from './types'
 
 export interface TextMatch {
   start: number
@@ -31,7 +37,7 @@ function fail(
   code: TemplateError['code'],
   message: string,
   options: {
-    detail?: string
+    detail?: TemplateErrorDetail
     params?: TemplateErrorParams
     label?: string
   } = {},

@@ -232,7 +232,7 @@ export const eu: Messages = {
     'invalid-locale': (error) =>
       error.detail === 'multiple-primary'
         ? 'Aukeratu hizkuntza nagusiaren aldaera bat soilik.'
-        : `"${params(error).locale ?? ''}" ez da hizkuntza-kode baliozkoa. Erabili en, es, eu edo en-GB bezalako etiketa bat.`,
+        : `"${params(error).locale ?? ''}" ez da hizkuntza-etiketa baliozkoa. Erabili en, es, eu edo en-GB bezalako etiketa bat.`,
     'duplicate-locale': (error) =>
       `"${params(error).locale ?? error.label ?? ''}" hizkuntza txantiloi batean baino gehiagotan erabiltzen da.`,
     'variant-mismatch': (error) => {

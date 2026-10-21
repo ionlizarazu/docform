@@ -231,7 +231,7 @@ export const es: Messages = {
     'invalid-locale': (error) =>
       error.detail === 'multiple-primary'
         ? 'Elige exactamente una variante de idioma principal.'
-        : `"${params(error).locale ?? ''}" no es un código de idioma válido. Usa una etiqueta como en, es, eu o en-GB.`,
+        : `"${params(error).locale ?? ''}" no es una etiqueta de idioma válida. Usa una etiqueta como en, es, eu o en-GB.`,
     'duplicate-locale': (error) =>
       `El idioma "${params(error).locale ?? error.label ?? ''}" se usa en más de una plantilla.`,
     'variant-mismatch': (error) => {

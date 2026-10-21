@@ -8,6 +8,7 @@ import type {
   Answers,
   Field,
   TemplateError,
+  TemplateErrorDetail,
   TemplateFormat,
 } from './types'
 
@@ -28,7 +29,7 @@ interface DetectedTemplate {
 
 function invalidFormat(
   message: string,
-  detail: string,
+  detail: TemplateErrorDetail,
   params?: { path?: string },
 ): TemplateFormError {
   return new TemplateFormError('invalid-format', message, { detail, params })

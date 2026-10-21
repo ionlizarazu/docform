@@ -42,6 +42,63 @@ export type TemplateErrorCode =
   | 'variant-mismatch'
   | 'option-count-mismatch'
 
+export type TemplateErrorDetail =
+  | 'closing-bracket-without-opening'
+  | 'conflicting-label'
+  | 'definition-mismatch'
+  | 'duplicate-labels'
+  | 'duplicate-locale'
+  | 'empty-display-name'
+  | 'empty-label'
+  | 'empty-option'
+  | 'format-mismatch'
+  | 'hash-mismatch'
+  | 'incomplete'
+  | 'invalid-answer'
+  | 'invalid-base64'
+  | 'invalid-locale'
+  | 'invalid-textarea'
+  | 'invalid-xml'
+  | 'kind-mismatch'
+  | 'label-set-mismatch'
+  | 'locale-set-mismatch'
+  | 'macro-enabled'
+  | 'missing-closing-bracket'
+  | 'missing-double-brace'
+  | 'missing-field'
+  | 'missing-manifest'
+  | 'missing-option-at-index'
+  | 'missing-primary'
+  | 'missing-template'
+  | 'modifier-with-options'
+  | 'multiple-option-lists'
+  | 'multiple-primary'
+  | 'nested-open'
+  | 'no-placeholders'
+  | 'no-variants'
+  | 'not-a-package'
+  | 'not-found'
+  | 'not-json'
+  | 'not-text-document'
+  | 'not-word'
+  | 'only-odt'
+  | 'option-closing-bracket'
+  | 'option-count-mismatch'
+  | 'route-mismatch'
+  | 'text-after-options'
+  | 'too-large'
+  | 'unexpected'
+  | 'unknown-modifier'
+  | 'unreadable-file'
+  | 'unreadable-package'
+  | 'unreadable-template'
+  | 'unsupported-region'
+  | 'unsupported-version'
+  | 'variant-incomplete'
+  | 'variant-mismatch'
+  | 'variant-missing'
+  | 'wrong-format'
+
 export interface TemplateErrorParams {
   locale?: string
   primaryLocale?: string
@@ -65,7 +122,7 @@ export interface TemplateErrorParams {
 
 export interface TemplateError {
   code: TemplateErrorCode
-  detail?: string
+  detail?: TemplateErrorDetail
   params?: TemplateErrorParams
   message: string
   label?: string
@@ -169,7 +226,7 @@ export const ZIP_MIME = 'application/zip'
 
 export class TemplateFormError extends Error {
   code: TemplateErrorCode
-  detail?: string
+  detail?: TemplateErrorDetail
   params?: TemplateErrorParams
   label?: string
   location?: string
@@ -178,7 +235,7 @@ export class TemplateFormError extends Error {
     code: TemplateErrorCode,
     message: string,
     options: {
-      detail?: string
+      detail?: TemplateErrorDetail
       params?: TemplateErrorParams
       label?: string
       location?: string

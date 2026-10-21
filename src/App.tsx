@@ -1,7 +1,10 @@
 import { Link, Route, Routes } from 'react-router-dom'
 import { useI18n } from './i18n/context'
-import { INTERFACE_LOCALES, LANGUAGE_NAMES } from './i18n/locales'
-import type { InterfaceLocale } from './i18n/locales'
+import {
+  INTERFACE_LOCALES,
+  LANGUAGE_NAMES,
+  isInterfaceLocale,
+} from './i18n/locales'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import FormPage from './pages/FormPage'
 import LibraryPage from './pages/LibraryPage'
@@ -23,9 +26,12 @@ export default function App() {
           <span>{messages.interfaceLanguage}</span>
           <select
             value={locale}
-            onChange={(event) =>
-              setLocale(event.target.value as InterfaceLocale)
-            }
+            onChange={(event) => {
+              const next = event.target.value
+              if (isInterfaceLocale(next)) {
+                setLocale(next)
+              }
+            }}
           >
             {INTERFACE_LOCALES.map((value) => (
               <option key={value} value={value} lang={value}>

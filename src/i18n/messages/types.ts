@@ -1,12 +1,13 @@
 import type {
   FieldKind,
   TemplateErrorCode,
+  TemplateErrorDetail,
   TemplateErrorParams,
 } from '../../domain/types'
 
 export interface LocalizedError {
   code: TemplateErrorCode
-  detail?: string
+  detail?: TemplateErrorDetail
   params?: TemplateErrorParams
   label?: string
   location?: string
