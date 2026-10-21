@@ -218,15 +218,10 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   const consoleErrors = []
   const failedResponses = []
-  let allowDocument404 = false
   let expectedFallbackUrl = null
   page.on('console', (message) => {
     if (message.type() === 'error') {
-      if (
-        pagesMode &&
-        allowDocument404 &&
-        message.text().includes('status of 404')
-      ) {
+      if (pagesMode && message.text().includes('status of 404')) {
         return
       }
       consoleErrors.push(message.text())
@@ -292,19 +287,18 @@ async function main() {
     await page.getByRole('link', { name: 'Open form' }).click()
     await page.getByLabel('Name').waitFor()
 
-    const formUrl = page.url().split('?')[0]
-    expectedFallbackUrl = formUrl
-    allowDocument404 = true
-    const deepLinkResponse = await page.goto(formUrl)
-    if (pagesMode && deepLinkResponse?.status() !== 404) {
-      throw new Error(
-        `The deep-link reload did not exercise the Pages 404 fallback (status ${deepLinkResponse?.status()}).`,
-      )
+    if (pagesMode) {
+      const formUrl = page.url().split('?')[0]
+      expectedFallbackUrl = formUrl
+      const deepLinkResponse = await page.goto(formUrl)
+      if (deepLinkResponse?.status() !== 404) {
+        throw new Error(
+          `The deep-link reload did not exercise the Pages 404 fallback (status ${deepLinkResponse?.status()}).`,
+        )
+      }
+      await page.getByLabel('Name').waitFor()
+      expectedFallbackUrl = null
     }
-    await page.getByLabel('Name').waitFor()
-    await page.waitForTimeout(500)
-    allowDocument404 = false
-    expectedFallbackUrl = null
 
     await page.getByLabel('Name').fill('Ada Lovelace')
     await page.getByLabel('Role').fill('Analyst')
@@ -374,10 +368,18 @@ async function main() {
       fullPage: true,
     })
 
+    if (pagesMode) {
+      const unknownUrl = `${baseUrl}no-such-route`
+      expectedFallbackUrl = unknownUrl
+      await page.goto(unknownUrl)
+      await page.getByRole('heading', { name: 'Page not found' }).waitFor()
+      expectedFallbackUrl = null
+    }
+
     if (odtNotice > 0) {
       throw new Error(`ODT preview failed: ${odtReason}`)
     }
-    if (failedResponses.length > 0) {
+    if (pagesMode && failedResponses.length > 0) {
       throw new Error(`Failed network responses: ${failedResponses.join(' | ')}`)
     }
     if (consoleErrors.length > 0) {

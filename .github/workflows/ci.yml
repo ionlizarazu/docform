@@ -45,8 +45,5 @@ jobs:
       - name: Verify Pages 404 fallback
         run: test -f dist/404.html
 
-      - name: Verify Chrome is available
-        run: google-chrome --version
-
       - name: Smoke the Pages artifact
         run: npm run smoke:pages
