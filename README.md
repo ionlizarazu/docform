@@ -71,16 +71,16 @@ npm test
 npm run build
 ```
 
-`npm run smoke` drives a real Chrome through the three interface languages, a bilingual upload, fill, ZIP download, English DOCX preview, and Spanish ODT preview using the system Chrome at `/usr/bin/google-chrome`. It writes screenshots and the filled ZIP to `/tmp/opencode/docform-smoke`.
+`npm run smoke` drives a real Chrome through the three interface languages, a bilingual upload, fill, ZIP download, English DOCX preview, and Spanish ODT preview using the system Chrome at `/usr/bin/google-chrome`. Set `CHROME_PATH` to override that executable for either smoke command. It writes screenshots and the filled ZIP to `/tmp/opencode/docform-smoke`.
 
 ## Deployment
 
-Docform publishes to GitHub Pages at `https://ionlizarazu.github.io/docform/` from `main`.
+Docform's GitHub Pages target is `https://ionlizarazu.github.io/docform/`, deployed from `main`. The first deployment requires the Pages source setting below.
 
 - `develop` is the integration branch. Feature work merges into it.
 - `develop` is promoted to `main` by pull request.
 - A push to `main` runs the Pages deployment workflow.
-- Pull requests targeting `main` run the `CI / verify` check: lint, tests, typecheck, the Pages build, the 404 artifact check, and the Pages browser smoke.
+- Pull requests targeting `main` run the `verify` check from the `CI` workflow: lint, tests, typecheck, the Pages build, the 404 artifact check, and the Pages browser smoke.
 
 Build and smoke the Pages artifact locally:
 
@@ -94,7 +94,7 @@ npm run smoke:pages
 One-time repository setup:
 
 1. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. **Settings → Branches → `main` protection**: require the `CI / verify` check and block direct pushes.
+2. **Settings → Branches → `main` protection**: require the `verify` check from the `CI` workflow and block direct pushes.
 
 These settings are not stored in the repository. The Pages source must be enabled before the first deployment, and branch protection is what turns the CI check into a merge gate. No `gh-pages` branch is used.
 

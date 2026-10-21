@@ -9,7 +9,7 @@
 This ticket requires GitHub repository administration and a real pull request; it is not agent-grabbable. The other tickets are agent-safe.
 
 - [ ] The repository's Pages source is set to GitHub Actions.
-- [ ] `main` requires the CI status check before merge and blocks direct pushes.
+- [ ] `main` requires the `verify` status check from the `CI` workflow before merge and blocks direct pushes.
 - [ ] A verification pull request from `develop` to `main` runs lint, tests, typecheck, the Pages build, the 404 artifact check, and the Pages browser smoke.
 - [ ] The required check is visible on the pull request and must pass before merge.
 - [ ] Merging the verification pull request triggers a successful Pages deployment and exposes the published URL.
