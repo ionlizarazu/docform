@@ -108,10 +108,14 @@ function makeForms(overrides: Partial<FormsApi> = {}): FormsApi {
   return { ...base, ...overrides }
 }
 
-function renderFormPage(forms: FormsApi, entry = '/f/abc123') {
+function renderFormPage(
+  forms: FormsApi,
+  entry = '/f/abc123',
+  locale: InterfaceLocale = 'en',
+) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
-      <I18nProvider initialLocale="en">
+      <I18nProvider initialLocale={locale}>
         <ServicesProvider value={{ forms, preview: fakePreview }}>
           <Routes>
             <Route path="/f/:route" element={<FormPage />} />
@@ -159,8 +163,8 @@ describe('LibraryPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /new form/i }))
     expect(screen.getByLabelText('Template 1')).toBeInTheDocument()
     expect(screen.getByLabelText('Template 2')).toBeInTheDocument()
-    expect(screen.getByLabelText('Locale 1')).toHaveValue('en')
-    expect(screen.getByLabelText('Locale 2')).toHaveValue('es')
+    expect(screen.getByLabelText('Document language 1')).toHaveValue('en')
+    expect(screen.getByLabelText('Document language 2')).toHaveValue('es')
     expect(screen.getByRole('button', { name: /create form/i })).toBeInTheDocument()
   })
 })
@@ -209,6 +213,24 @@ describe('FormPage', () => {
     expect(screen.getByText('Spain · France')).toBeInTheDocument()
     expect(screen.getByText('España · Francia')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open form/i })).toBeInTheDocument()
+  })
+
+  it('localizes the detected screen and tags template text with its language', async () => {
+    renderFormPage(
+      makeForms({ get: async () => view }),
+      '/f/abc123?detected=1',
+      'es',
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Campos detectados' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Idiomas de los documentos')).toBeInTheDocument()
+    expect(screen.getByText('Name')).toHaveAttribute('lang', 'en')
+    expect(screen.getByText('España · Francia')).toHaveAttribute('lang', 'es')
+    expect(screen.getByText('Texto')).toBeInTheDocument()
+    expect(screen.getByText('Selección')).toBeInTheDocument()
+    expect(screen.getByText('Idioma principal')).toBeInTheDocument()
   })
 
   it('explains an unknown route', async () => {
@@ -291,6 +313,48 @@ describe('App shell', () => {
       await screen.findByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('combobox')).toHaveValue('eu')
+  })
+
+  it('localizes the new-form panel and its local validation', async () => {
+    renderApp('/', 'es')
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /nuevo formulario/i }),
+    )
+
+    expect(
+      screen.getByRole('heading', { name: 'Nuevo formulario' }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Plantilla 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('Idioma del documento 1')).toHaveValue('en')
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /crear formulario/i }),
+    )
+
+    expect(
+      screen.getByText('Elige un archivo DOCX u ODT para cada idioma.'),
+    ).toBeInTheDocument()
+  })
+
+  it('preserves new-form drafts across an interface-language switch', async () => {
+    renderApp('/', 'es')
+    await userEvent.click(
+      screen.getByRole('button', { name: /nuevo formulario/i }),
+    )
+
+    const file = new File(['x'], 'draft.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })
+    await userEvent.upload(screen.getByLabelText('Plantilla 1'), file)
+    await userEvent.clear(screen.getByLabelText('Idioma del documento 2'))
+    await userEvent.type(screen.getByLabelText('Idioma del documento 2'), 'eu')
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'eu')
+
+    expect(await screen.findByLabelText('Txantiloia 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('Dokumentuaren hizkuntza 2')).toHaveValue('eu')
+    const fileInput = screen.getByLabelText('Txantiloia 1') as HTMLInputElement
+    expect(fileInput.files?.[0]?.name).toBe('draft.docx')
   })
 
   it('keeps rendering when storage cannot be read', () => {

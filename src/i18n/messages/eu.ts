@@ -40,4 +40,33 @@ export const eu: Messages = {
   backToLibrary: 'Itzuli formularioetara',
   singleLanguage: 'Hizkuntza bakarra',
   languageCount: (count) => `${count} hizkuntza`,
+  newFormTitle: 'Formulario berria',
+  newFormHint:
+    'Hizkuntza bakoitzeko txantiloiak etiketa eta eremu-mota berberak adierazi behar ditu. Aukera-eremuak posizioaren arabera parekatzen dira, beraz, mantendu ordena bera.',
+  createForm: 'Sortu formularioa',
+  addLanguage: 'Gehitu hizkuntza',
+  removeLanguage: 'Kendu',
+  templateNumberLabel: (index) => `Txantiloia ${index}`,
+  documentLanguageNumberLabel: (index) =>
+    `Dokumentuaren hizkuntza ${index}`,
+  primaryLabel: 'Hizkuntza nagusia',
+  primaryHint:
+    'Hizkuntza nagusiak formularioa betetzen duenari erakusten zaizkion etiketak, eremu-ordena eta aukerak ematen ditu.',
+  addAtLeastOneTemplate: 'Gehitu gutxienez hizkuntza-txantiloi bat.',
+  chooseFileForEveryLanguage:
+    'Aukeratu DOCX edo ODT fitxategi bat hizkuntza bakoitzeko.',
+  invalidDocumentLocale: (locale) =>
+    `"${locale}" ez da dokumentu-hizkuntzaren etiketa baliozkoa. Erabili en, es, eu edo en-GB bezalako etiketa bat.`,
+  duplicateDocumentLocale: (locale) =>
+    `"${locale}" dokumentu-hizkuntza behin baino gehiagotan erabili da.`,
+  chooseOnePrimary: 'Aukeratu hizkuntza nagusi bat.',
+  detectedTitle: 'Detektatutako eremuak',
+  detectedHint:
+    'Hau zure txantiloietatik ateratako formularioaren definizioaren irakurketa-soileko ikuspegia da.',
+  languageVariants: 'Dokumentuen hizkuntzak',
+  optionPairing:
+    'Aukera-eremuak posizioaren arabera parekatzen dira hizkuntzen artean.',
+  fieldKindText: 'Testua',
+  fieldKindTextarea: 'Testu luzea',
+  fieldKindSelect: 'Hautaketa',
 }

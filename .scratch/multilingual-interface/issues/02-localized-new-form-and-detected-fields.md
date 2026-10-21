@@ -4,13 +4,13 @@
 
 **Blocked by:** 01 — Interface-locale foundation, switcher, app shell, and library
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The New Form panel copy, buttons, hints, “Template N” and “Locale N” labels, file and locale labels, primary choice, add/remove language, create, and cancel are catalogued in `eu`, `es`, and `en`.
-- [ ] Local panel validation is localized: missing file, invalid locale, duplicate locale, and no primary language. Service and domain upload errors are deferred to ticket 05.
-- [ ] Switching the interface language while the panel is open preserves the draft rows, selected files, locale values, and primary choice.
-- [ ] The naming distinguishes the interface language in the header from the document language tag in the panel; the panel's locale input is explicitly labelled as a document language.
-- [ ] The detected-fields screen localizes its heading, language-variant list, primary marker, format labels, field-kind badges, option-pairing guidance, open-form and back actions, and the `und` label.
-- [ ] Template field labels and options are not translated. Detected template text carries the primary document `lang` when known and omits it for `und`.
-- [ ] Tests in `eu` and `es` cover the panel, detected screen, draft preservation across an interface-language switch, and `lang` correctness. The English tests remain the baseline.
-- [ ] Typecheck, lint, and tests pass.
+- [x] The New Form panel copy, buttons, hints, “Template N” and “Document language N” labels, file and locale labels, primary choice, add/remove language, create, and cancel are catalogued in `eu`, `es`, and `en`.
+- [x] Local panel validation is localized: missing file, invalid locale, duplicate locale, and no primary language. Service and domain upload errors are deferred to ticket 05.
+- [x] Switching the interface language while the panel is open preserves the draft rows, selected files, locale values, and primary choice.
+- [x] The naming distinguishes the interface language in the header from the document language tag in the panel; the panel's locale input is explicitly labelled as a document language.
+- [x] The detected-fields screen localizes its heading, language-variant list, primary marker, format labels, field-kind badges, option-pairing guidance, open-form and back actions, and the `und` label.
+- [x] Template field labels and options are not translated. Detected template text carries the primary document `lang` when known and omits it for `und`.
+- [x] Tests in `eu` and `es` cover the panel, detected screen, draft preservation across an interface-language switch, and `lang` correctness. The English tests remain the baseline.
+- [x] Typecheck, lint, and tests pass.

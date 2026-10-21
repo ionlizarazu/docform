@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useServices } from '../app/services'
 import type { FormView } from '../domain/types'
 import { fieldByLabel, primaryVariantOf } from '../domain/variants'
+import { useI18n } from '../i18n/context'
 import { strings } from '../strings'
 import { bytesToBlob, downloadBlob } from '../ui/download'
 import { messageOf } from '../ui/errors'
@@ -14,6 +15,7 @@ export default function FormPage() {
   const [searchParams] = useSearchParams()
   const detected = searchParams.get('detected') === '1'
   const { forms } = useServices()
+  const { messages } = useI18n()
   const navigate = useNavigate()
   const [form, setForm] = useState<FormView | null | undefined>(undefined)
   const [answers, setAnswers] = useState<Map<string, string>>(() => new Map())
@@ -78,35 +80,39 @@ export default function FormPage() {
 
   if (detected) {
     const primary = primaryVariantOf(form.definition)
+    const primaryDocumentLang =
+      form.primaryLocale === 'und' ? undefined : form.primaryLocale
     return (
       <section className="page">
         <div className="page-heading">
           <div>
             <p className="eyebrow">{form.displayName}</p>
-            <h1>{strings.detectedTitle}</h1>
-            <p className="muted">{strings.detectedHint}</p>
+            <h1>{messages.detectedTitle}</h1>
+            <p className="muted">{messages.detectedHint}</p>
           </div>
           <div className="upload-actions">
             <Link className="button-link" to={`/f/${form.route}`}>
-              {strings.openForm}
+              {messages.openForm}
             </Link>
             <Link className="button-link secondary" to="/">
-              {strings.backToLibrary}
+              {messages.backToLibrary}
             </Link>
           </div>
         </div>
 
         <div>
-          <h2>{strings.languageVariants}</h2>
+          <h2>{messages.languageVariants}</h2>
           <ul className="variant-list">
             {form.definition.variants.map((variant) => (
               <li key={variant.locale}>
                 <span className="badge">
-                  {variant.locale === 'und' ? 'single' : variant.locale}
+                  {variant.locale === 'und'
+                    ? messages.singleLanguage
+                    : variant.locale}
                 </span>
-                <span className="muted">{variant.format}</span>
+                <span className="muted">{variant.format.toUpperCase()}</span>
                 {variant.locale === form.primaryLocale && (
-                  <span className="muted">{strings.primaryLabel}</span>
+                  <span className="muted">{messages.primaryLabel}</span>
                 )}
                 <code>/{variant.templateHash.slice(0, 12)}…</code>
               </li>
@@ -118,8 +124,14 @@ export default function FormPage() {
           {primary.fields.map((field, index) => (
             <li key={`${field.label}-${index}`}>
               <div>
-                <strong>{field.label}</strong>
-                <span className="badge">{field.kind}</span>
+                <strong lang={primaryDocumentLang}>{field.label}</strong>
+                <span className="badge">
+                  {field.kind === 'text'
+                    ? messages.fieldKindText
+                    : field.kind === 'textarea'
+                      ? messages.fieldKindTextarea
+                      : messages.fieldKindSelect}
+                </span>
               </div>
               {field.kind === 'select' && (
                 <div className="option-pairing">
@@ -128,13 +140,23 @@ export default function FormPage() {
                     return (
                       <div key={variant.locale}>
                         <span className="badge">
-                          {variant.locale === 'und' ? 'single' : variant.locale}
+                          {variant.locale === 'und'
+                            ? messages.singleLanguage
+                            : variant.locale}
                         </span>{' '}
-                        {variantField?.options?.join(' · ')}
+                        <span
+                          lang={
+                            variant.locale === 'und'
+                              ? undefined
+                              : variant.locale
+                          }
+                        >
+                          {variantField?.options?.join(' · ')}
+                        </span>
                       </div>
                     )
                   })}
-                  <p className="hint">{strings.optionPairing}</p>
+                  <p className="hint">{messages.optionPairing}</p>
                 </div>
               )}
             </li>

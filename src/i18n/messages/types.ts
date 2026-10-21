@@ -31,4 +31,25 @@ export interface Messages {
   backToLibrary: string
   singleLanguage: string
   languageCount: (count: number) => string
+  newFormTitle: string
+  newFormHint: string
+  createForm: string
+  addLanguage: string
+  removeLanguage: string
+  templateNumberLabel: (index: number) => string
+  documentLanguageNumberLabel: (index: number) => string
+  primaryLabel: string
+  primaryHint: string
+  addAtLeastOneTemplate: string
+  chooseFileForEveryLanguage: string
+  invalidDocumentLocale: (locale: string) => string
+  duplicateDocumentLocale: (locale: string) => string
+  chooseOnePrimary: string
+  detectedTitle: string
+  detectedHint: string
+  languageVariants: string
+  optionPairing: string
+  fieldKindText: string
+  fieldKindTextarea: string
+  fieldKindSelect: string
 }

@@ -38,4 +38,32 @@ export const es: Messages = {
   backToLibrary: 'Volver a los formularios',
   singleLanguage: 'Idioma único',
   languageCount: (count) => `${count} ${count === 1 ? 'idioma' : 'idiomas'}`,
+  newFormTitle: 'Nuevo formulario',
+  newFormHint:
+    'Cada plantilla de idioma debe declarar las mismas etiquetas y tipos de campo. Las opciones de selección se emparejan por posición, así que mantén el mismo orden.',
+  createForm: 'Crear formulario',
+  addLanguage: 'Añadir idioma',
+  removeLanguage: 'Quitar',
+  templateNumberLabel: (index) => `Plantilla ${index}`,
+  documentLanguageNumberLabel: (index) => `Idioma del documento ${index}`,
+  primaryLabel: 'Idioma principal',
+  primaryHint:
+    'El idioma principal proporciona las etiquetas, el orden de los campos y las opciones que ve quien rellena el formulario.',
+  addAtLeastOneTemplate: 'Añade al menos una plantilla de idioma.',
+  chooseFileForEveryLanguage:
+    'Elige un archivo DOCX u ODT para cada idioma.',
+  invalidDocumentLocale: (locale) =>
+    `"${locale}" no es una etiqueta de idioma de documento válida. Usa una etiqueta como en, es, eu o en-GB.`,
+  duplicateDocumentLocale: (locale) =>
+    `El idioma del documento "${locale}" se usa más de una vez.`,
+  chooseOnePrimary: 'Elige un idioma principal.',
+  detectedTitle: 'Campos detectados',
+  detectedHint:
+    'Esta es una vista de solo lectura de la definición del formulario capturada de tus plantillas.',
+  languageVariants: 'Idiomas de los documentos',
+  optionPairing:
+    'Las opciones de selección se emparejan por posición entre idiomas.',
+  fieldKindText: 'Texto',
+  fieldKindTextarea: 'Texto largo',
+  fieldKindSelect: 'Selección',
 }

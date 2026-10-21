@@ -37,4 +37,30 @@ export const en: Messages = {
   singleLanguage: 'Single language',
   languageCount: (count) =>
     `${count} ${count === 1 ? 'language' : 'languages'}`,
+  newFormTitle: 'New form',
+  newFormHint:
+    'Every language template must declare the same labels and field kinds. Select options are paired by position, so keep their order aligned.',
+  createForm: 'Create form',
+  addLanguage: 'Add language',
+  removeLanguage: 'Remove',
+  templateNumberLabel: (index) => `Template ${index}`,
+  documentLanguageNumberLabel: (index) => `Document language ${index}`,
+  primaryLabel: 'Primary language',
+  primaryHint:
+    'The primary language supplies the labels, field order, and options shown to the filler.',
+  addAtLeastOneTemplate: 'Add at least one language template.',
+  chooseFileForEveryLanguage: 'Choose a DOCX or ODT file for every language.',
+  invalidDocumentLocale: (locale) =>
+    `"${locale}" is not a valid document language tag. Use a tag such as en, es, eu, or en-GB.`,
+  duplicateDocumentLocale: (locale) =>
+    `The document language "${locale}" is used more than once.`,
+  chooseOnePrimary: 'Choose one primary language.',
+  detectedTitle: 'Detected fields',
+  detectedHint:
+    'This is a read-only view of the form definition captured from your templates.',
+  languageVariants: 'Document languages',
+  optionPairing: 'Select options are paired by position across languages.',
+  fieldKindText: 'Text',
+  fieldKindTextarea: 'Long text',
+  fieldKindSelect: 'Select',
 }

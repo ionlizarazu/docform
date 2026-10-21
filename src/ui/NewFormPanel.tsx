@@ -2,8 +2,8 @@ import { useState } from 'react'
 import type { FormsApi } from '../app/TemplateForms'
 import type { IngestResult, TemplateError } from '../domain/types'
 import { normalizeLocale } from '../domain/variants'
-import { strings } from '../strings'
-import { messageOf } from './errors'
+import { useI18n } from '../i18n/context'
+import type { Messages } from '../i18n/messages/types'
 
 interface Draft {
   id: number
@@ -14,10 +14,32 @@ interface Draft {
 
 type Success = Extract<IngestResult, { ok: true }>
 
+type PanelError =
+  | { kind: 'no-template' }
+  | { kind: 'missing-file' }
+  | { kind: 'invalid-locale'; locale: string }
+  | { kind: 'duplicate-locale'; locale: string }
+  | { kind: 'no-primary' }
+
 let nextDraftId = 1
 
 function newDraft(locale: string, primary: boolean): Draft {
   return { id: nextDraftId++, file: null, locale, primary }
+}
+
+function panelErrorMessage(error: PanelError, messages: Messages): string {
+  switch (error.kind) {
+    case 'no-template':
+      return messages.addAtLeastOneTemplate
+    case 'missing-file':
+      return messages.chooseFileForEveryLanguage
+    case 'invalid-locale':
+      return messages.invalidDocumentLocale(error.locale)
+    case 'duplicate-locale':
+      return messages.duplicateDocumentLocale(error.locale)
+    case 'no-primary':
+      return messages.chooseOnePrimary
+  }
 }
 
 export function NewFormPanel({
@@ -31,12 +53,13 @@ export function NewFormPanel({
   onCancel: () => void
   onError: (errors: TemplateError[]) => void
 }) {
+  const { messages } = useI18n()
   const [drafts, setDrafts] = useState<Draft[]>([
     newDraft('en', true),
     newDraft('es', false),
   ])
   const [busy, setBusy] = useState(false)
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [validationError, setValidationError] = useState<PanelError | null>(null)
 
   const update = (id: number, change: Partial<Draft>) => {
     setDrafts((current) =>
@@ -70,11 +93,11 @@ export function NewFormPanel({
     setValidationError(null)
 
     if (drafts.length === 0) {
-      setValidationError('Add at least one language template.')
+      setValidationError({ kind: 'no-template' })
       return
     }
     if (drafts.some((draft) => draft.file === null)) {
-      setValidationError('Choose a DOCX or ODT file for every language.')
+      setValidationError({ kind: 'missing-file' })
       return
     }
 
@@ -82,20 +105,18 @@ export function NewFormPanel({
     for (const draft of drafts) {
       const locale = normalizeLocale(draft.locale)
       if (locale === null) {
-        setValidationError(
-          `"${draft.locale}" is not a valid locale. Use a tag such as en, es, eu, or en-GB.`,
-        )
+        setValidationError({ kind: 'invalid-locale', locale: draft.locale })
         return
       }
       if (locales.includes(locale)) {
-        setValidationError(`The locale "${locale}" is used more than once.`)
+        setValidationError({ kind: 'duplicate-locale', locale })
         return
       }
       locales.push(locale)
     }
 
     if (!drafts.some((draft) => draft.primary)) {
-      setValidationError('Choose one primary language.')
+      setValidationError({ kind: 'no-primary' })
       return
     }
 
@@ -113,13 +134,8 @@ export function NewFormPanel({
         return
       }
       onCreated(result)
-    } catch (error) {
-      onError([
-        {
-          code: 'invalid-format',
-          message: messageOf(error, strings.unsupportedUpload),
-        },
-      ])
+    } catch {
+      onError([{ code: 'invalid-format', message: '' }])
     } finally {
       setBusy(false)
     }
@@ -129,8 +145,8 @@ export function NewFormPanel({
     <section className="new-form-panel" aria-labelledby="new-form-title">
       <div className="new-form-heading">
         <div>
-          <h2 id="new-form-title">{strings.newFormTitle}</h2>
-          <p className="muted">{strings.newFormHint}</p>
+          <h2 id="new-form-title">{messages.newFormTitle}</h2>
+          <p className="muted">{messages.newFormHint}</p>
         </div>
       </div>
 
@@ -139,7 +155,7 @@ export function NewFormPanel({
           <li className="variant-draft" key={draft.id}>
             <div className="variant-draft-file">
               <label htmlFor={`template-${draft.id}`}>
-                Template {index + 1}
+                {messages.templateNumberLabel(index + 1)}
               </label>
               <input
                 id={`template-${draft.id}`}
@@ -153,7 +169,7 @@ export function NewFormPanel({
             </div>
             <div className="variant-draft-locale">
               <label htmlFor={`locale-${draft.id}`}>
-                {strings.localeLabel} {index + 1}
+                {messages.documentLanguageNumberLabel(index + 1)}
               </label>
               <input
                 id={`locale-${draft.id}`}
@@ -172,7 +188,7 @@ export function NewFormPanel({
                 checked={draft.primary}
                 onChange={() => setPrimary(draft.id)}
               />
-              {strings.primaryLabel}
+              {messages.primaryLabel}
             </label>
             <button
               type="button"
@@ -180,23 +196,23 @@ export function NewFormPanel({
               onClick={() => removeLanguage(draft.id)}
               disabled={drafts.length === 1 || busy}
             >
-              {strings.removeLanguage}
+              {messages.removeLanguage}
             </button>
           </li>
         ))}
       </ul>
 
-      <p className="hint">{strings.primaryHint}</p>
+      <p className="hint">{messages.primaryHint}</p>
 
       {validationError !== null && (
         <div className="errors" role="alert">
-          {validationError}
+          {panelErrorMessage(validationError, messages)}
         </div>
       )}
 
       <div className="form-actions">
         <button type="button" onClick={() => void submit()} disabled={busy}>
-          {strings.createForm}
+          {messages.createForm}
         </button>
         <button
           type="button"
@@ -204,7 +220,7 @@ export function NewFormPanel({
           onClick={addLanguage}
           disabled={busy}
         >
-          {strings.addLanguage}
+          {messages.addLanguage}
         </button>
         <button
           type="button"
@@ -212,7 +228,7 @@ export function NewFormPanel({
           onClick={onCancel}
           disabled={busy}
         >
-          {strings.cancel}
+          {messages.cancel}
         </button>
       </div>
     </section>
