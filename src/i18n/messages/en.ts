@@ -77,7 +77,8 @@ export const en: Messages = {
   detectedTitle: 'Detected fields',
   detectedHint:
     'This is a read-only view of the form definition captured from your templates.',
-  languageVariants: 'Document languages',
+  languageVariants: 'Language variants',
+  documentLanguages: 'Document languages',
   optionPairing: 'Select options are paired by position across languages.',
   fieldKind,
   fieldsOptional: 'All fields are optional.',
@@ -253,6 +254,9 @@ export const en: Messages = {
     },
     'option-count-mismatch': (error) => {
       const p = params(error)
+      if (error.detail === 'missing-option-at-index') {
+        return `The select field "${p.label ?? error.label ?? ''}" has no option at position ${(p.index ?? 0) + 1} in "${p.locale ?? ''}".`
+      }
       return `The select field "${p.label ?? error.label ?? ''}" has ${p.primaryCount ?? 0} options in "${p.primaryLocale ?? ''}" but ${p.variantCount ?? 0} in "${p.locale ?? ''}". Options are paired by position, so the counts must match.`
     },
   },

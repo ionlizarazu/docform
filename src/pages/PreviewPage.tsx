@@ -132,7 +132,7 @@ export default function PreviewPage() {
   if (failure !== null && form === undefined) {
     return (
       <section className="page">
-        <h1>{messages.previewUnavailable}</h1>
+        <h1>{messages.errorsTitle}</h1>
         <p className="muted">
           {localizeError(failure, messages, messages.errorDetail)}
         </p>
@@ -216,7 +216,7 @@ export default function PreviewPage() {
         <div
           className="preview-tabs"
           role="tablist"
-          aria-label={messages.languageVariants}
+          aria-label={messages.documentLanguages}
         >
           {documents.map((document) => (
             <button

@@ -79,7 +79,8 @@ export const es: Messages = {
   detectedTitle: 'Campos detectados',
   detectedHint:
     'Esta es una vista de solo lectura de la definición del formulario capturada de tus plantillas.',
-  languageVariants: 'Idiomas de los documentos',
+  languageVariants: 'Variantes de idioma',
+  documentLanguages: 'Idiomas de los documentos',
   optionPairing:
     'Las opciones de selección se emparejan por posición entre idiomas.',
   fieldKind,
@@ -259,6 +260,9 @@ export const es: Messages = {
     },
     'option-count-mismatch': (error) => {
       const p = params(error)
+      if (error.detail === 'missing-option-at-index') {
+        return `El campo de selección "${p.label ?? error.label ?? ''}" no tiene una opción en la posición ${(p.index ?? 0) + 1} en "${p.locale ?? ''}".`
+      }
       return `El campo de selección "${p.label ?? error.label ?? ''}" tiene ${p.primaryCount ?? 0} opciones en "${p.primaryLocale ?? ''}" pero ${p.variantCount ?? 0} en "${p.locale ?? ''}". Las opciones se emparejan por posición, así que las cantidades deben coincidir.`
     },
   },

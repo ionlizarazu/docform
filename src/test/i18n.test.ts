@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { localizeError } from '../i18n/errors'
 import { formatDate } from '../i18n/format'
 import { resolveInterfaceLocale } from '../i18n/locales'
@@ -52,6 +52,7 @@ describe('interface formatting', () => {
 
 describe('error presentation adapter', () => {
   it('falls back for unknown errors and synthetic UI errors', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     expect(
       localizeError(
         new Error('raw diagnostic'),
@@ -95,6 +96,41 @@ describe('error presentation adapter', () => {
     expect(message).toContain('Name')
     expect(message).toContain('Nombre')
     expect(message).toContain('faltan')
+    expect(message).not.toContain('raw diagnostic')
+  })
+
+  it('localizes package details', () => {
+    expect(
+      localizeError(
+        {
+          code: 'invalid-package',
+          detail: 'route-mismatch',
+          message: 'raw diagnostic',
+        },
+        messagesByLocale.es,
+        messagesByLocale.es.errorDetail,
+      ),
+    ).toBe('La ruta del paquete no coincide con su contenido.')
+  })
+
+  it('localizes a missing option by position', () => {
+    const message = localizeError(
+      {
+        code: 'option-count-mismatch',
+        detail: 'missing-option-at-index',
+        params: {
+          label: 'Country',
+          locale: 'es',
+          index: 1,
+        },
+        message: 'raw diagnostic',
+      },
+      messagesByLocale.es,
+      messagesByLocale.es.errorDetail,
+    )
+
+    expect(message).toContain('Country')
+    expect(message).toContain('posición 2')
     expect(message).not.toContain('raw diagnostic')
   })
 

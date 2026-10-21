@@ -261,6 +261,7 @@ describe('LibraryPage', () => {
   })
 
   it('localizes library list failures', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     render(
       <MemoryRouter>
         <I18nProvider initialLocale="es">
@@ -380,7 +381,7 @@ describe('FormPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Campos detectados' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Idiomas de los documentos')).toBeInTheDocument()
+    expect(screen.getByText('Variantes de idioma')).toBeInTheDocument()
     expect(screen.getByText('Name')).toHaveAttribute('lang', 'en')
     expect(screen.getByText('España · Francia')).toHaveAttribute('lang', 'es')
     expect(screen.getByText('Texto')).toBeInTheDocument()
@@ -398,7 +399,7 @@ describe('FormPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'Detektatutako eremuak' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Dokumentuen hizkuntzak')).toBeInTheDocument()
+    expect(screen.getByText('Hizkuntza-aldaerak')).toBeInTheDocument()
     expect(screen.getByText('Testua')).toBeInTheDocument()
     expect(screen.getByText('Hautaketa')).toBeInTheDocument()
   })
@@ -705,6 +706,43 @@ describe('PreviewPage', () => {
     expect(
       screen.getByRole('button', { name: 'Deskargatu betetako dokumentuak' }),
     ).toBeInTheDocument()
+  })
+
+  it('does not call a form-load failure a preview render failure', async () => {
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="es">
+          <ServicesProvider
+            value={{
+              forms: makeForms({
+                get: async () => {
+                  throw new TemplateFormError('not-found', 'raw diagnostic', {
+                    detail: 'not-found',
+                  })
+                },
+              }),
+              preview: fakePreview,
+            }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'No se pudo completar la acción',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Este formulario no está guardado en este dispositivo.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('raw diagnostic')).not.toBeInTheDocument()
   })
 
   it('localizes preview fill failures', async () => {

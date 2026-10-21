@@ -12,6 +12,19 @@ function isTemplateError(value: unknown): value is TemplateError {
   )
 }
 
+export function diagnosticOf(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+  return ''
+}
+
 export function toLocalizedError(error: unknown): LocalizedError | null {
   if (error instanceof TemplateFormError) {
     return {
@@ -42,7 +55,11 @@ export function localizeError(
   fallback: string,
 ): string {
   const localized = toLocalizedError(error)
-  if (localized === null || localized.detail === 'unexpected') {
+  if (localized === null) {
+    console.error(error)
+    return fallback
+  }
+  if (localized.detail === 'unexpected') {
     return fallback
   }
 

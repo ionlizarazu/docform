@@ -7,7 +7,11 @@ import type {
   TemplateErrorCode,
 } from '../domain/types'
 import { useI18n } from '../i18n/context'
-import { localizeError, toLocalizedError } from '../i18n/errors'
+import {
+  diagnosticOf,
+  localizeError,
+  toLocalizedError,
+} from '../i18n/errors'
 import { downloadBlob } from '../ui/download'
 import { NewFormPanel } from '../ui/NewFormPanel'
 
@@ -17,7 +21,12 @@ function asTemplateError(
 ): TemplateError {
   const localized = toLocalizedError(error)
   if (localized === null) {
-    return { code: fallbackCode, detail: 'unexpected', message: '' }
+    console.error(error)
+    return {
+      code: fallbackCode,
+      detail: 'unexpected',
+      message: diagnosticOf(error),
+    }
   }
   return {
     code: localized.code,
@@ -25,7 +34,7 @@ function asTemplateError(
     params: localized.params,
     label: localized.label,
     location: localized.location,
-    message: '',
+    message: diagnosticOf(error),
   }
 }
 

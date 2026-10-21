@@ -527,7 +527,7 @@ export class TemplateForms implements FormsApi {
     const primary = prepared.find((variant) => variant.locale === primaryLocale)
     if (primary === undefined) {
       return failure(
-        'no-variants',
+        'variant-mismatch',
         'The primary language variant is missing.',
         'missing-primary',
         { primaryLocale },
@@ -722,7 +722,7 @@ export class TemplateForms implements FormsApi {
             'option-count-mismatch',
             `The select field "${field.label}" does not have an option at position ${index + 1} in "${variant.locale}".`,
             {
-              detail: 'option-count-mismatch',
+              detail: 'missing-option-at-index',
               params: {
                 label: field.label,
                 locale: variant.locale,

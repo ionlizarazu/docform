@@ -64,6 +64,7 @@ export interface Messages {
   detectedTitle: string
   detectedHint: string
   languageVariants: string
+  documentLanguages: string
   optionPairing: string
   fieldKind: (kind: FieldKind) => string
   fieldsOptional: string

@@ -3,6 +3,7 @@ import type { FormsApi } from '../app/TemplateForms'
 import type { IngestResult, TemplateError } from '../domain/types'
 import { normalizeLocale } from '../domain/variants'
 import { useI18n } from '../i18n/context'
+import { diagnosticOf } from '../i18n/errors'
 import type { Messages } from '../i18n/messages/types'
 
 interface Draft {
@@ -134,8 +135,15 @@ export function NewFormPanel({
         return
       }
       onCreated(result)
-    } catch {
-      onError([{ code: 'invalid-format', detail: 'unexpected', message: '' }])
+    } catch (error) {
+      console.error(error)
+      onError([
+        {
+          code: 'invalid-format',
+          detail: 'unexpected',
+          message: diagnosticOf(error),
+        },
+      ])
     } finally {
       setBusy(false)
     }

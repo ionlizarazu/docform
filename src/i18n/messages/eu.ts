@@ -82,7 +82,8 @@ export const eu: Messages = {
   detectedTitle: 'Detektatutako eremuak',
   detectedHint:
     'Hau zure txantiloietatik ateratako formularioaren definizioaren irakurketa-soileko ikuspegia da.',
-  languageVariants: 'Dokumentuen hizkuntzak',
+  languageVariants: 'Hizkuntza-aldaerak',
+  documentLanguages: 'Dokumentuen hizkuntzak',
   optionPairing:
     'Aukera-eremuak posizioaren arabera parekatzen dira hizkuntzen artean.',
   fieldKind,
@@ -260,6 +261,9 @@ export const eu: Messages = {
     },
     'option-count-mismatch': (error) => {
       const p = params(error)
+      if (error.detail === 'missing-option-at-index') {
+        return `"${p.label ?? error.label ?? ''}" hautaketa-eremuak ez du aukerarik ${(p.index ?? 0) + 1}. posizioan "${p.locale ?? ''}" hizkuntzan.`
+      }
       return `"${p.label ?? error.label ?? ''}" hautaketa-eremuak ${p.primaryCount ?? 0} aukera ditu "${p.primaryLocale ?? ''}" hizkuntzan, baina ${p.variantCount ?? 0} "${p.locale ?? ''}" hizkuntzan. Aukerak posizioaren arabera parekatzen dira, beraz, kopuruek bat etorri behar dute.`
     },
   },
