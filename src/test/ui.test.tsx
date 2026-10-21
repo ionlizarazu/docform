@@ -826,6 +826,10 @@ describe('App shell', () => {
     renderApp('/', 'en')
 
     expect(screen.getByRole('heading', { name: 'Your forms' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute(
+      'href',
+      '/docs',
+    )
     const select = screen.getByRole('combobox')
     expect(screen.getByRole('option', { name: 'Euskara' })).toHaveAttribute(
       'lang',
@@ -841,6 +845,25 @@ describe('App shell', () => {
       screen.getByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('eu')
+  })
+
+  it('opens the localized guide from the header and updates with the interface language', async () => {
+    renderApp('/docs', 'en')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Docform guide' }),
+    ).toBeInTheDocument()
+
+    const select = screen.getByRole('combobox')
+    await userEvent.selectOptions(select, 'es')
+    expect(
+      screen.getByRole('heading', { name: 'Guía de Docform' }),
+    ).toBeInTheDocument()
+
+    await userEvent.selectOptions(select, 'eu')
+    expect(
+      screen.getByRole('heading', { name: 'Docform gida' }),
+    ).toBeInTheDocument()
   })
 
   it('restores the saved interface locale', async () => {

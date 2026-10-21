@@ -23,6 +23,7 @@ export const eu: Messages = {
   appName: 'Docform',
   appTagline:
     'Bihurtu dokumentuak formulario nabigatzailetik irten gabe.',
+  docs: 'Gida',
   interfaceLanguage: 'Interfazaren hizkuntza',
   libraryTitle: 'Zure formularioak',
   librarySubtitle:
