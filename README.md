@@ -73,11 +73,39 @@ npm run build
 
 `npm run smoke` drives a real Chrome through the three interface languages, a bilingual upload, fill, ZIP download, English DOCX preview, and Spanish ODT preview using the system Chrome at `/usr/bin/google-chrome`. It writes screenshots and the filled ZIP to `/tmp/opencode/docform-smoke`.
 
+## Deployment
+
+Docform publishes to GitHub Pages at `https://ionlizarazu.github.io/docform/` from `main`.
+
+- `develop` is the integration branch. Feature work merges into it.
+- `develop` is promoted to `main` by pull request.
+- A push to `main` runs the Pages deployment workflow.
+- Pull requests targeting `main` run the `CI / verify` check: lint, tests, typecheck, the Pages build, the 404 artifact check, and the Pages browser smoke.
+
+Build and smoke the Pages artifact locally:
+
+```bash
+npm run build:pages
+npm run smoke:pages
+```
+
+`build:pages` builds with the `/docform/` base and writes the GitHub Pages 404 fallback. `smoke:pages` serves that artifact under `/docform/` with GitHub Pages-style 404 handling, runs the full form flow, and reloads a deep form route. Run the build before the smoke.
+
+One-time repository setup:
+
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. **Settings → Branches → `main` protection**: require the `CI / verify` check and block direct pushes.
+
+These settings are not stored in the repository. The Pages source must be enabled before the first deployment, and branch protection is what turns the CI check into a merge gate. No `gh-pages` branch is used.
+
+The project-site base `/docform/` is repository-specific. If the repository is renamed or a custom domain is added, change the Pages base and the router basename together.
+
 ## Storage and privacy
 
 - Every variant template, the shared form definition, and display names live in IndexedDB under `template-form-docs`.
 - There is no server, no account, no analytics, and no runtime network call for form data.
 - A route only resolves in the browser profile that stored it. Clearing site data removes it.
+- The Pages site is a different origin from localhost. Forms and preferences created locally do not appear on Pages, and vice versa. Use a form package to move a form between them.
 - Export a `.formpack.json` to back up or move a form. Importing the same package twice is idempotent.
 
 ## Architecture
@@ -111,6 +139,7 @@ Preview HTML is isolated in an opaque-origin iframe (`sandbox="allow-scripts"` w
 - Specs:
   - [`.scratch/template-form/spec.md`](.scratch/template-form/spec.md)
   - [`.scratch/multilingual-interface/spec.md`](.scratch/multilingual-interface/spec.md)
+  - [`.scratch/gh-pages-deployment/spec.md`](.scratch/gh-pages-deployment/spec.md)
 - Glossary: [`GLOSSARY.md`](GLOSSARY.md)
 - ADRs:
   - [`docs/adr/0001-inline-field-declarations.md`](docs/adr/0001-inline-field-declarations.md)

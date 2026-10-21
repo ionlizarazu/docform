@@ -4,13 +4,13 @@
 
 **Blocked by:** 03 — PR CI for all pull requests targeting main; 04 — Main-branch Pages deployment workflow
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `develop` exists on the remote at the current `main` commit, ready to receive feature work.
-- [ ] The deployment documentation explains `develop` → `main`, the main-branch deployment, and the role of the required CI check.
-- [ ] It documents the one-time Pages source setting and the published project URL as setup steps, without claiming they are already enabled.
-- [ ] It documents the Pages production build, artifact check, Pages browser smoke, and normal local commands.
-- [ ] It explains that GitHub Pages is a different origin from localhost, so existing forms and browser preferences do not transfer; form packages are the supported move path.
-- [ ] It records that the `/docform/` base is repository-specific and must change together with the router basename if the repository is renamed or a custom domain is added.
-- [ ] It explicitly states that no `gh-pages` branch is used.
-- [ ] The documented local build and smoke commands are verified, and the repository remains clean.
+- [x] `develop` exists on the remote, created from the current `main`, and contains the deployment documentation ready for the ticket 06 verification PR.
+- [x] The deployment documentation explains `develop` → `main`, the main-branch deployment, and the role of the required CI check.
+- [x] It documents the one-time Pages source setting and the published project URL as setup steps, without claiming they are already enabled.
+- [x] It documents the Pages production build, artifact check, Pages browser smoke, and normal local commands.
+- [x] It explains that GitHub Pages is a different origin from localhost, so existing forms and browser preferences do not transfer; form packages are the supported move path.
+- [x] It records that the `/docform/` base is repository-specific and must change together with the router basename if the repository is renamed or a custom domain is added.
+- [x] It explicitly states that no `gh-pages` branch is used.
+- [x] The documented local build and smoke commands are verified, and the repository remains clean.
