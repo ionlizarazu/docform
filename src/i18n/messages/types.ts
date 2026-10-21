@@ -18,6 +18,7 @@ export type ErrorMessage = (error: LocalizedError) => string
 export interface Messages {
   appName: string
   appTagline: string
+  docs: string
   interfaceLanguage: string
   libraryTitle: string
   librarySubtitle: string

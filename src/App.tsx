@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
 import { useI18n } from './i18n/context'
 import {
@@ -12,6 +13,8 @@ import NotFoundPage from './pages/NotFoundPage'
 import PreviewPage from './pages/PreviewPage'
 import UnexpectedErrorPage from './pages/UnexpectedErrorPage'
 
+const DocsPage = lazy(() => import('./pages/DocsPage'))
+
 export default function App() {
   const { locale, setLocale, messages } = useI18n()
 
@@ -22,6 +25,9 @@ export default function App() {
           {messages.appName}
         </Link>
         <p className="tagline">{messages.appTagline}</p>
+        <Link to="/docs" className="docs-link">
+          {messages.docs}
+        </Link>
         <label className="interface-language">
           <span>{messages.interfaceLanguage}</span>
           <select
@@ -45,6 +51,14 @@ export default function App() {
         <ErrorBoundary fallback={<UnexpectedErrorPage />}>
           <Routes>
             <Route path="/" element={<LibraryPage />} />
+            <Route
+              path="/docs"
+              element={
+                <Suspense fallback={<p className="muted">{messages.loading}</p>}>
+                  <DocsPage />
+                </Suspense>
+              }
+            />
             <Route path="/f/:route" element={<FormPage />} />
             <Route path="/f/:route/preview" element={<PreviewPage />} />
             <Route

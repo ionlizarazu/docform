@@ -53,6 +53,8 @@ The interface locale is independent of document languages. Switching it never ch
 
 Errors are reported as stable codes with structured details and localized from typed catalogs. The English diagnostic message is for development only and is never shown. Preview failures show a localized message; the raw renderer reason sits in a collapsed “Technical details” disclosure.
 
+The in-app guide is available at `/docs` from the header and follows the interface language. Its Markdown sources are in `docs/guides/` for English, Spanish, and Basque.
+
 ![The generated form](docs/screenshots/form.png)
 
 ## Run
@@ -115,7 +117,8 @@ The project-site base `/docform/` is repository-specific. If the repository is r
 - `src/i18n/` — interface-locale detection, typed catalogs, date/count formatting, and the error-message adapter.
 - `src/storage/` — the IndexedDB store.
 - `src/preview/` — a `PreviewRenderer` port with lazy `docx-preview` and `@opendocument/odr-core` adapters.
-- `src/pages/` — library, form, preview, and not-found pages.
+- `src/pages/` — library, form, preview, docs, and not-found pages.
+- `docs/guides/` — the in-app Markdown guide in `en`, `es`, and `eu`.
 
 Substitution is implemented in-house on JSZip plus XML text-node editing, so the custom grammar stays authoritative and split runs/spans are handled directly. `docx-preview` and `odr-core` are used only for the approximate preview.
 

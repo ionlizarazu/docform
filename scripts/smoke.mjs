@@ -368,8 +368,23 @@ async function main() {
       fullPage: true,
     })
 
+    const docsUrl = new URL('docs', baseUrl).toString()
+    expectedFallbackUrl = docsUrl
+    const docsResponse = await page.goto(docsUrl)
+    if (pagesMode && docsResponse?.status() !== 404) {
+      throw new Error(
+        `The docs route did not exercise the Pages 404 fallback (status ${docsResponse?.status()}).`,
+      )
+    }
+    await page.getByRole('heading', { name: 'Docform guide' }).waitFor()
+    await page.screenshot({
+      path: path.join(outDir, '07-docs.png'),
+      fullPage: true,
+    })
+    expectedFallbackUrl = null
+
     if (pagesMode) {
-      const unknownUrl = `${baseUrl}no-such-route`
+      const unknownUrl = new URL('no-such-route', baseUrl).toString()
       expectedFallbackUrl = unknownUrl
       await page.goto(unknownUrl)
       await page.getByRole('heading', { name: 'Page not found' }).waitFor()

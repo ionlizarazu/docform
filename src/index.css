@@ -124,8 +124,20 @@ button.danger:hover:not(:disabled) {
   font-size: 0.92rem;
 }
 
-.interface-language {
+.docs-link {
   margin-left: auto;
+  align-self: center;
+  font-size: 0.86rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.docs-link:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.interface-language {
   align-self: center;
   display: inline-flex;
   align-items: center;
@@ -527,6 +539,56 @@ textarea {
   background: #fff;
 }
 
+.docs-content {
+  width: min(52rem, 100%);
+  padding: clamp(1.1rem, 3vw, 2rem);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(23, 32, 42, 0.05);
+  overflow-wrap: anywhere;
+}
+
+.docs-content h1 {
+  margin-top: 0;
+}
+
+.docs-content h2 {
+  margin-top: 1.8rem;
+}
+
+.docs-content h3 {
+  margin-top: 1.3rem;
+}
+
+.docs-content li {
+  line-height: 1.55;
+}
+
+.docs-content li + li {
+  margin-top: 0.25rem;
+}
+
+.docs-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.docs-content th,
+.docs-content td {
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.docs-content th {
+  background: var(--accent-soft);
+}
+
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
@@ -559,6 +621,10 @@ code {
   .form-actions > *,
   .upload-actions > * {
     flex: 1;
+  }
+
+  .docs-link {
+    margin-left: 0;
   }
 
   .interface-language {

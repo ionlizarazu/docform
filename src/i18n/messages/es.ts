@@ -22,6 +22,7 @@ function params(error: LocalizedError): TemplateErrorParams {
 export const es: Messages = {
   appName: 'Docform',
   appTagline: 'Convierte documentos en formularios sin salir del navegador.',
+  docs: 'Guía',
   interfaceLanguage: 'Idioma de la interfaz',
   libraryTitle: 'Tus formularios',
   librarySubtitle: 'Las plantillas que subes se quedan en este navegador.',
