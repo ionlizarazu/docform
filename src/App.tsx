@@ -33,48 +33,50 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <Link to="/" className="brand">
-          {messages.appName}
-        </Link>
-        <nav className="app-nav">
-          <Link
-            to="/"
-            className={formsActive ? 'active' : undefined}
-            aria-current={
-              libraryActive ? 'page' : formsActive ? 'true' : undefined
-            }
-          >
-            {messages.formsNav}
+        <div className="app-header-content content-column">
+          <Link to="/" className="brand">
+            {messages.appName}
           </Link>
-          <Link
-            to="/docs"
-            className={docsActive ? 'active' : undefined}
-            aria-current={docsActive ? 'page' : undefined}
-          >
-            {messages.docs}
-          </Link>
-        </nav>
-        <div
-          className="interface-language-switcher"
-          role="group"
-          aria-label={messages.interfaceLanguage}
-        >
-          {INTERFACE_LOCALES.map((value) => (
-            <button
-              key={value}
-              type="button"
-              className="interface-language-button"
-              lang={value}
-              aria-pressed={value === locale}
-              aria-label={`${value} — ${LANGUAGE_NAMES[value]}`}
-              onClick={() => setLocale(value)}
+          <nav className="app-nav">
+            <Link
+              to="/"
+              className={formsActive ? 'active' : undefined}
+              aria-current={
+                libraryActive ? 'page' : formsActive ? 'true' : undefined
+              }
             >
-              {value}
-            </button>
-          ))}
+              {messages.formsNav}
+            </Link>
+            <Link
+              to="/docs"
+              className={docsActive ? 'active' : undefined}
+              aria-current={docsActive ? 'page' : undefined}
+            >
+              {messages.docs}
+            </Link>
+          </nav>
+          <div
+            className="interface-language-switcher"
+            role="group"
+            aria-label={messages.interfaceLanguage}
+          >
+            {INTERFACE_LOCALES.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className="interface-language-button"
+                lang={value}
+                aria-pressed={value === locale}
+                aria-label={`${value} — ${LANGUAGE_NAMES[value]}`}
+                onClick={() => setLocale(value)}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
-      <main className="app-main">
+      <main className="app-main content-column">
         <ErrorBoundary fallback={<UnexpectedErrorPage />}>
           <Routes>
             <Route path="/" element={<LibraryPage />} />
