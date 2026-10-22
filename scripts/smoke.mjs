@@ -244,12 +244,53 @@ async function main() {
     await page.goto(baseUrl)
     await page.screenshot({ path: path.join(outDir, '01-library.png'), fullPage: true })
 
-    const interfaceLanguage = page.getByRole('combobox')
-    await interfaceLanguage.selectOption('eu')
-    await page.getByRole('heading', { name: 'Zure formularioak' }).waitFor()
-    if ((await page.locator('html').getAttribute('lang')) !== 'eu') {
-      throw new Error('The document lang did not update to Basque')
+    if ((await page.getByRole('combobox').count()) !== 0) {
+      throw new Error('The old header language select is still rendered')
     }
+    const headerNav = page.getByRole('navigation')
+    if ((await headerNav.getByRole('link', { name: 'Forms' }).count()) === 0) {
+      throw new Error('The header is missing the Forms menu item')
+    }
+    if ((await headerNav.getByRole('link', { name: 'Docs' }).count()) === 0) {
+      throw new Error('The header is missing the Docs menu item')
+    }
+    if (
+      (await page.getByText('Turn documents into forms without leaving your browser.').count()) !==
+      0
+    ) {
+      throw new Error('The removed tagline is still rendered')
+    }
+
+    async function selectInterfaceLanguage(endonym, code, headingName) {
+      const button = page.getByRole('button', { name: endonym })
+      await button.click()
+      await page.getByRole('heading', { name: headingName }).waitFor()
+
+      const pressed = await button.getAttribute('aria-pressed')
+      if (pressed !== 'true') {
+        throw new Error(
+          `The ${code} language button is not marked as selected (aria-pressed=${pressed})`,
+        )
+      }
+      for (const other of ['Euskara', 'Español', 'English']) {
+        if (other === endonym) {
+          continue
+        }
+        const otherPressed = await page
+          .getByRole('button', { name: other })
+          .getAttribute('aria-pressed')
+        if (otherPressed !== 'false') {
+          throw new Error(
+            `The ${other} language button remained selected after choosing ${endonym}`,
+          )
+        }
+      }
+      if ((await page.locator('html').getAttribute('lang')) !== code) {
+        throw new Error(`The document lang did not update to ${code}`)
+      }
+    }
+
+    await selectInterfaceLanguage('Euskara', 'eu', 'Zure formularioak')
     if ((await page.getByRole('button', { name: 'Formulario berria' }).count()) === 0) {
       throw new Error('The Basque library chrome did not render')
     }
@@ -258,11 +299,7 @@ async function main() {
       fullPage: true,
     })
 
-    await interfaceLanguage.selectOption('es')
-    await page.getByRole('heading', { name: 'Tus formularios' }).waitFor()
-    if ((await page.locator('html').getAttribute('lang')) !== 'es') {
-      throw new Error('The document lang did not update to Spanish')
-    }
+    await selectInterfaceLanguage('Español', 'es', 'Tus formularios')
     if ((await page.getByRole('button', { name: 'Nuevo formulario' }).count()) === 0) {
       throw new Error('The Spanish library chrome did not render')
     }
@@ -271,11 +308,7 @@ async function main() {
       fullPage: true,
     })
 
-    await interfaceLanguage.selectOption('en')
-    await page.getByRole('heading', { name: 'Your forms' }).waitFor()
-    if ((await page.locator('html').getAttribute('lang')) !== 'en') {
-      throw new Error('The document lang did not return to English')
-    }
+    await selectInterfaceLanguage('English', 'en', 'Your forms')
 
     await page.getByRole('button', { name: 'New form' }).click()
     await page.getByLabel('Template 1').setInputFiles(docxPath)

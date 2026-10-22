@@ -21,8 +21,7 @@ function params(error: LocalizedError): TemplateErrorParams {
 
 export const eu: Messages = {
   appName: 'Docform',
-  appTagline:
-    'Bihurtu dokumentuak formulario nabigatzailetik irten gabe.',
+  formsNav: 'Formularioak',
   docs: 'Gida',
   interfaceLanguage: 'Interfazaren hizkuntza',
   libraryTitle: 'Zure formularioak',

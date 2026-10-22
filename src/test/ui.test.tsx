@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -467,11 +467,16 @@ describe('FormPage', () => {
 
     await userEvent.type(await screen.findByLabelText('Name'), 'Ada')
     await userEvent.selectOptions(screen.getByLabelText('Country'), 'France')
-    await userEvent.selectOptions(
-      screen.getByLabelText('Interface language'),
-      'es',
-    )
+    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
 
+    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
     expect(screen.getByLabelText('Name')).toHaveValue('Ada')
     expect(screen.getByLabelText('Country')).toHaveValue('France')
     expect(
@@ -613,14 +618,15 @@ describe('PreviewPage', () => {
       screen.getByRole('tab', { name: 'en' }),
     ).toHaveAttribute('aria-selected', 'true')
 
-    await userEvent.selectOptions(
-      screen.getByLabelText('Interface language'),
-      'es',
-    )
+    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
 
     expect(
       await screen.findByTitle('Vista previa aproximada'),
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     expect(
       screen.getByRole('tab', { name: 'en' }),
     ).toHaveAttribute('aria-selected', 'true')
@@ -810,17 +816,179 @@ describe('PreviewPage', () => {
 })
 
 describe('App shell', () => {
-  function renderApp(entry = '/', locale?: InterfaceLocale) {
+  function renderApp(
+    entry = '/',
+    locale?: InterfaceLocale,
+    options: {
+      forms?: FormsApi
+      preview?: PreviewRenderer
+      basename?: string
+    } = {},
+  ) {
     return render(
-      <MemoryRouter initialEntries={[entry]}>
+      <MemoryRouter basename={options.basename} initialEntries={[entry]}>
         <I18nProvider initialLocale={locale}>
-          <ServicesProvider value={{ forms: makeForms(), preview: fakePreview }}>
+          <ServicesProvider
+            value={{
+              forms: options.forms ?? makeForms(),
+              preview: options.preview ?? fakePreview,
+            }}
+          >
             <App />
           </ServicesProvider>
         </I18nProvider>
       </MemoryRouter>,
     )
   }
+
+  function navLink(name: string) {
+    return within(screen.getByRole('navigation')).getByRole('link', { name })
+  }
+
+  it('renders a compact header with the app name, menu, and language buttons', () => {
+    renderApp('/', 'en')
+
+    expect(screen.getByRole('link', { name: 'Docform' })).toHaveAttribute(
+      'href',
+      '/',
+    )
+    expect(screen.getByRole('link', { name: 'Forms' })).toHaveAttribute(
+      'href',
+      '/',
+    )
+    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute(
+      'href',
+      '/docs',
+    )
+
+    const group = screen.getByRole('group', { name: 'Interface language' })
+    const buttons = within(group).getAllByRole('button')
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      'eu',
+      'es',
+      'en',
+    ])
+    expect(buttons.map((button) => button.getAttribute('lang'))).toEqual([
+      'eu',
+      'es',
+      'en',
+    ])
+  })
+
+  it('removes the tagline and the old language select', () => {
+    const { container } = renderApp('/', 'en')
+
+    expect(container.querySelector('.tagline')).toBeNull()
+    expect(
+      screen.queryByText(
+        'Turn documents into forms without leaving your browser.',
+      ),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('marks the selected language with aria-pressed and its language tag', () => {
+    renderApp('/', 'es')
+
+    const group = screen.getByRole('group', { name: 'Idioma de la interfaz' })
+    const euskara = within(group).getByRole('button', { name: 'Euskara' })
+    const espanol = within(group).getByRole('button', { name: 'Español' })
+    const english = within(group).getByRole('button', { name: 'English' })
+
+    expect(euskara).toHaveAttribute('lang', 'eu')
+    expect(espanol).toHaveAttribute('lang', 'es')
+    expect(english).toHaveAttribute('lang', 'en')
+    expect(euskara).toHaveAttribute('aria-pressed', 'false')
+    expect(espanol).toHaveAttribute('aria-pressed', 'true')
+    expect(english).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it.each([
+    ['eu', 'Formularioak', 'Gida'],
+    ['es', 'Formularios', 'Guía'],
+  ] as const)('localizes the menu labels in %s', (locale, forms, docs) => {
+    renderApp('/', locale)
+
+    expect(screen.getByRole('link', { name: forms })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: docs })).toBeInTheDocument()
+  })
+
+  it('marks Forms active on the library route', () => {
+    renderApp('/', 'en')
+
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Forms active on a form route', async () => {
+    renderApp('/f/abc123', 'en', {
+      forms: makeForms({ get: async () => view }),
+    })
+
+    expect(await screen.findByLabelText('Name')).toBeInTheDocument()
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Forms active on the preview route', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const preview: PreviewRenderer = {
+      render: async () => ({
+        kind: 'html',
+        html: '<!doctype html><html><body>Preview</body></html>',
+      }),
+    }
+    renderApp('/f/abc123/preview', 'en', {
+      forms: makeForms({ get: async () => view }),
+      preview,
+    })
+
+    expect(await screen.findByTitle('Approximate preview')).toBeInTheDocument()
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Docs active on the guide route', async () => {
+    renderApp('/docs', 'en')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Docform guide' }),
+    ).toBeInTheDocument()
+    expect(navLink('Docs')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Forms')).not.toHaveAttribute('aria-current')
+  })
+
+  it('keeps menu links and active state under the Pages basename', async () => {
+    renderApp('/docform/docs', 'en', { basename: '/docform/' })
+
+    expect(navLink('Forms')).toHaveAttribute('href', '/docform/')
+    expect(navLink('Docs')).toHaveAttribute('href', '/docform/docs')
+    expect(
+      await screen.findByRole('heading', { name: 'Docform guide' }),
+    ).toBeInTheDocument()
+    expect(navLink('Docs')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Forms')).not.toHaveAttribute('aria-current')
+  })
+
+  it('navigates between Forms and Docs and moves the active item', async () => {
+    renderApp('/docs', 'en')
+
+    await userEvent.click(navLink('Forms'))
+    expect(
+      await screen.findByRole('heading', { name: 'Your forms' }),
+    ).toBeInTheDocument()
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+
+    await userEvent.click(navLink('Docs'))
+    expect(
+      await screen.findByRole('heading', { name: 'Docform guide' }),
+    ).toBeInTheDocument()
+    expect(navLink('Docs')).toHaveAttribute('aria-current', 'page')
+  })
 
   it('switches the interface between Euskara, Español, and English', async () => {
     renderApp('/', 'en')
@@ -830,21 +998,33 @@ describe('App shell', () => {
       'href',
       '/docs',
     )
-    const select = screen.getByRole('combobox')
-    expect(screen.getByRole('option', { name: 'Euskara' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute(
       'lang',
-      'eu',
+      'en',
     )
 
-    await userEvent.selectOptions(select, 'es')
+    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('es')
+    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
 
-    await userEvent.selectOptions(select, 'eu')
+    await userEvent.click(screen.getByRole('button', { name: 'Euskara' }))
     expect(
       screen.getByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('eu')
+    expect(screen.getByRole('button', { name: 'Euskara' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(localStorage.getItem(INTERFACE_LOCALE_STORAGE_KEY)).toBe('eu')
   })
 
   it('opens the localized guide from the header and updates with the interface language', async () => {
@@ -854,13 +1034,12 @@ describe('App shell', () => {
       await screen.findByRole('heading', { name: 'Docform guide' }),
     ).toBeInTheDocument()
 
-    const select = screen.getByRole('combobox')
-    await userEvent.selectOptions(select, 'es')
+    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
     expect(
       screen.getByRole('heading', { name: 'Guía de Docform' }),
     ).toBeInTheDocument()
 
-    await userEvent.selectOptions(select, 'eu')
+    await userEvent.click(screen.getByRole('button', { name: 'Euskara' }))
     expect(
       screen.getByRole('heading', { name: 'Docform gida' }),
     ).toBeInTheDocument()
@@ -873,7 +1052,10 @@ describe('App shell', () => {
     expect(
       await screen.findByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('combobox')).toHaveValue('eu')
+    expect(screen.getByRole('button', { name: 'Euskara' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
   it('localizes the new-form panel and its local validation', async () => {
@@ -910,7 +1092,7 @@ describe('App shell', () => {
     await userEvent.upload(screen.getByLabelText('Plantilla 1'), file)
     await userEvent.clear(screen.getByLabelText('Idioma del documento 2'))
     await userEvent.type(screen.getByLabelText('Idioma del documento 2'), 'eu')
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'eu')
+    await userEvent.click(screen.getByRole('button', { name: 'Euskara' }))
 
     expect(await screen.findByLabelText('Txantiloia 1')).toBeInTheDocument()
     expect(screen.getByLabelText('Dokumentuaren hizkuntza 2')).toHaveValue('eu')
@@ -1046,9 +1228,13 @@ describe('App shell', () => {
     })
 
     renderApp('/', 'en')
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'es')
+    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
 
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
   it('localizes the library, counts, and single-language badge', async () => {
