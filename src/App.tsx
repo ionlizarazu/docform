@@ -1,11 +1,7 @@
 import { lazy, Suspense } from 'react'
-import { Link, Route, Routes } from 'react-router-dom'
+import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import { useI18n } from './i18n/context'
-import {
-  INTERFACE_LOCALES,
-  LANGUAGE_NAMES,
-  isInterfaceLocale,
-} from './i18n/locales'
+import { INTERFACE_LOCALES, LANGUAGE_NAMES } from './i18n/locales'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import FormPage from './pages/FormPage'
 import LibraryPage from './pages/LibraryPage'
@@ -15,8 +11,19 @@ import UnexpectedErrorPage from './pages/UnexpectedErrorPage'
 
 const DocsPage = lazy(() => import('./pages/DocsPage'))
 
+function isFormsRoute(pathname: string): boolean {
+  return pathname === '/' || pathname.startsWith('/f/')
+}
+
+function isDocsRoute(pathname: string): boolean {
+  return pathname === '/docs' || pathname.startsWith('/docs/')
+}
+
 export default function App() {
   const { locale, setLocale, messages } = useI18n()
+  const { pathname } = useLocation()
+  const formsActive = isFormsRoute(pathname)
+  const docsActive = isDocsRoute(pathname)
 
   return (
     <div className="app-shell">
@@ -24,28 +31,41 @@ export default function App() {
         <Link to="/" className="brand">
           {messages.appName}
         </Link>
-        <p className="tagline">{messages.appTagline}</p>
-        <Link to="/docs" className="docs-link">
-          {messages.docs}
-        </Link>
-        <label className="interface-language">
-          <span>{messages.interfaceLanguage}</span>
-          <select
-            value={locale}
-            onChange={(event) => {
-              const next = event.target.value
-              if (isInterfaceLocale(next)) {
-                setLocale(next)
-              }
-            }}
+        <nav className="app-nav">
+          <Link
+            to="/"
+            className={formsActive ? 'active' : undefined}
+            aria-current={formsActive ? 'page' : undefined}
           >
-            {INTERFACE_LOCALES.map((value) => (
-              <option key={value} value={value} lang={value}>
-                {LANGUAGE_NAMES[value]}
-              </option>
-            ))}
-          </select>
-        </label>
+            {messages.formsNav}
+          </Link>
+          <Link
+            to="/docs"
+            className={docsActive ? 'active' : undefined}
+            aria-current={docsActive ? 'page' : undefined}
+          >
+            {messages.docs}
+          </Link>
+        </nav>
+        <div
+          className="language-switcher"
+          role="group"
+          aria-label={messages.interfaceLanguage}
+        >
+          {INTERFACE_LOCALES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className="language-button"
+              lang={value}
+              aria-pressed={value === locale}
+              aria-label={LANGUAGE_NAMES[value]}
+              onClick={() => setLocale(value)}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
       </header>
       <main className="app-main">
         <ErrorBoundary fallback={<UnexpectedErrorPage />}>

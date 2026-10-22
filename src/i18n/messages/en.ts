@@ -21,7 +21,7 @@ function params(error: LocalizedError): TemplateErrorParams {
 
 export const en: Messages = {
   appName: 'Docform',
-  appTagline: 'Turn documents into forms without leaving your browser.',
+  formsNav: 'Forms',
   docs: 'Docs',
   interfaceLanguage: 'Interface language',
   libraryTitle: 'Your forms',
