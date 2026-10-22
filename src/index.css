@@ -18,6 +18,8 @@
   --danger-soft: #f9e9e7;
   --danger-line: #e8c9c5;
   --warning-soft: #fbf3df;
+  --content-width: 72rem;
+  --content-gutter: clamp(1rem, 4vw, 3rem);
 }
 
 * {
@@ -105,13 +107,22 @@ button.danger:hover:not(:disabled) {
   flex-direction: column;
 }
 
+.content-column {
+  width: min(var(--content-width), 100%);
+  margin-inline: auto;
+  padding-inline: var(--content-gutter);
+}
+
 .app-header {
-  padding: 1.1rem clamp(1rem, 4vw, 3rem) 0.9rem;
+  padding-block: 1.1rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-header-content {
   display: flex;
   align-items: center;
   gap: 1.25rem;
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--line);
 }
 
 .brand {
@@ -186,10 +197,8 @@ button:focus-visible,
 }
 
 .app-main {
-  width: min(72rem, 100%);
-  margin: 0 auto;
-  padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
   flex: 1;
+  padding-bottom: 4rem;
 }
 
 .page {
@@ -602,7 +611,6 @@ textarea {
 }
 
 .docs-content {
-  width: min(52rem, 100%);
   padding: clamp(1.1rem, 3vw, 2rem);
   background: var(--paper);
   border: 1px solid var(--line);

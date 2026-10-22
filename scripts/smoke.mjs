@@ -250,6 +250,58 @@ async function main() {
     await page.screenshot({ path: path.join(outDir, name), fullPage: true })
   }
 
+  const edgeTolerance = 1.5
+  let contentColumn = null
+
+  async function boxOf(selector, description) {
+    const box = await page.locator(selector).first().boundingBox()
+    if (box === null) {
+      throw new Error(`The ${description} is missing its bounding box`)
+    }
+    return box
+  }
+
+  async function captureContentColumn() {
+    const formCard = await boxOf('.form-card', 'form card')
+    contentColumn = {
+      left: formCard.x,
+      right: formCard.x + formCard.width,
+    }
+
+    const brand = await boxOf('.brand', 'header brand')
+    if (Math.abs(brand.x - contentColumn.left) > edgeTolerance) {
+      throw new Error(
+        `The header brand starts at ${brand.x}px but the content column starts at ${contentColumn.left}px`,
+      )
+    }
+
+    const languageSwitcher = await boxOf(
+      '.interface-language-switcher',
+      'interface language switcher',
+    )
+    const languageRight = languageSwitcher.x + languageSwitcher.width
+    if (Math.abs(languageRight - contentColumn.right) > edgeTolerance) {
+      throw new Error(
+        `The interface language switcher ends at ${languageRight}px but the content column ends at ${contentColumn.right}px`,
+      )
+    }
+  }
+
+  async function assertUsesContentColumn(selector, description) {
+    if (contentColumn === null) {
+      throw new Error('The content column has not been measured yet')
+    }
+    const box = await boxOf(selector, description)
+    if (
+      Math.abs(box.x - contentColumn.left) > edgeTolerance ||
+      Math.abs(box.x + box.width - contentColumn.right) > edgeTolerance
+    ) {
+      throw new Error(
+        `The ${description} spans ${box.x}..${box.x + box.width}px but the content column spans ${contentColumn.left}..${contentColumn.right}px`,
+      )
+    }
+  }
+
   try {
     await waitForServer(baseUrl)
     await page.goto(baseUrl)
@@ -355,6 +407,8 @@ async function main() {
     await page.getByLabel('Notes').fill('First line\nSecond line')
     await page.getByLabel('Reference').fill('REF-42')
     await capture('03-form.png')
+    await captureContentColumn()
+    await assertUsesContentColumn('.page-heading', 'form page heading')
 
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Download filled documents' }).click()
@@ -398,6 +452,7 @@ async function main() {
     await page.locator('iframe.preview-frame').waitFor()
     await page.waitForTimeout(2000)
     await capture('04-docx-preview.png')
+    await assertUsesContentColumn('.preview-frame', 'preview frame')
     const docxNotice = await page.getByText('The preview could not be rendered').count()
     if (docxNotice > 0) {
       throw new Error('DOCX preview fell back to unavailable')
@@ -413,6 +468,7 @@ async function main() {
     await page.goto(baseUrl)
     await page.getByText('sample-contract').waitFor()
     await capture('06-library-populated.png')
+    await assertUsesContentColumn('.form-row', 'library form row')
 
     await page.setViewportSize({ width: 390, height: 900 })
     if (!(await page.getByRole('navigation').isVisible())) {
@@ -459,6 +515,7 @@ async function main() {
     }
     await page.getByRole('heading', { name: 'Docform guide' }).waitFor()
     await capture('07-docs.png')
+    await assertUsesContentColumn('.docs-content', 'docs article')
     expectedFallbackUrl = null
 
     if (pagesMode) {
