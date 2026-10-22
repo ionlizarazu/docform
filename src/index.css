@@ -258,6 +258,14 @@ p {
   align-items: center;
 }
 
+.library-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+}
+
 .visually-hidden {
   display: none;
 }
@@ -695,6 +703,10 @@ code {
   .form-actions > *,
   .upload-actions > * {
     flex: 1;
+  }
+
+  .library-toolbar > button {
+    flex: 1 1 10rem;
   }
 
   .interface-language-switcher {
