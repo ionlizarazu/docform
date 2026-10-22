@@ -246,6 +246,7 @@ async function main() {
 
   async function capture(name) {
     await page.mouse.move(1, 1)
+    await page.waitForTimeout(250)
     await page.screenshot({ path: path.join(outDir, name), fullPage: true })
   }
 
