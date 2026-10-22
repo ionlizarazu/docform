@@ -60,10 +60,12 @@ La vista previa es aproximada. Sirve para comprobar la disposición, pero el doc
 
 Hay dos elecciones de idioma diferentes:
 
-- El **Idioma de la interfaz** de la cabecera cambia los botones, los mensajes, las fechas y esta guía. Las opciones actuales son Euskara, Español e English.
+- El **Idioma de la interfaz** de la cabecera cambia los botones, los mensajes, las fechas y esta guía. Se muestra como `eu | es | en`, con el código seleccionado en negrita; los lectores de pantalla anuncian las opciones como Euskara, Español e English.
 - El **Idioma del documento** pertenece a una plantilla. Controla las etiquetas, las opciones y el documento relleno de esa variante de idioma.
 
 Cambiar el idioma de la interfaz no cambia los idiomas de los documentos del formulario ni los documentos que descargas.
+
+El menú de la cabecera tiene **Formularios**, que vuelve a la biblioteca de formularios, y **Guía**, que abre esta guía.
 
 ## 5. Copia de seguridad o mover un formulario
 
