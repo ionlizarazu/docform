@@ -11,18 +11,23 @@ import UnexpectedErrorPage from './pages/UnexpectedErrorPage'
 
 const DocsPage = lazy(() => import('./pages/DocsPage'))
 
-function isFormsRoute(pathname: string): boolean {
-  return pathname === '/' || pathname.startsWith('/f/')
+function isLibraryRoute(pathname: string): boolean {
+  return pathname === '/'
+}
+
+function isFormRoute(pathname: string): boolean {
+  return pathname.startsWith('/f/')
 }
 
 function isDocsRoute(pathname: string): boolean {
-  return pathname === '/docs' || pathname.startsWith('/docs/')
+  return pathname === '/docs'
 }
 
 export default function App() {
   const { locale, setLocale, messages } = useI18n()
   const { pathname } = useLocation()
-  const formsActive = isFormsRoute(pathname)
+  const libraryActive = isLibraryRoute(pathname)
+  const formsActive = libraryActive || isFormRoute(pathname)
   const docsActive = isDocsRoute(pathname)
 
   return (
@@ -35,7 +40,9 @@ export default function App() {
           <Link
             to="/"
             className={formsActive ? 'active' : undefined}
-            aria-current={formsActive ? 'page' : undefined}
+            aria-current={
+              libraryActive ? 'page' : formsActive ? 'true' : undefined
+            }
           >
             {messages.formsNav}
           </Link>
@@ -48,7 +55,7 @@ export default function App() {
           </Link>
         </nav>
         <div
-          className="language-switcher"
+          className="interface-language-switcher"
           role="group"
           aria-label={messages.interfaceLanguage}
         >
@@ -56,10 +63,10 @@ export default function App() {
             <button
               key={value}
               type="button"
-              className="language-button"
+              className="interface-language-button"
               lang={value}
               aria-pressed={value === locale}
-              aria-label={LANGUAGE_NAMES[value]}
+              aria-label={`${value} — ${LANGUAGE_NAMES[value]}`}
               onClick={() => setLocale(value)}
             >
               {value}

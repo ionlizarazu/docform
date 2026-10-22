@@ -144,14 +144,14 @@ button.danger:hover:not(:disabled) {
   font-weight: 750;
 }
 
-.language-switcher {
+.interface-language-switcher {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 0.15rem;
 }
 
-.language-button {
+.interface-language-button {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 0.35rem;
@@ -162,24 +162,25 @@ button.danger:hover:not(:disabled) {
   letter-spacing: 0.02em;
 }
 
-.language-button:hover:not(:disabled) {
+.interface-language-button:hover:not(:disabled) {
   background: var(--accent-soft);
   border-color: transparent;
   color: var(--accent-strong);
 }
 
-.language-button[aria-pressed="true"] {
+.interface-language-button[aria-pressed="true"] {
   color: var(--accent-strong);
   font-weight: 800;
 }
 
-.language-button + .language-button {
+.interface-language-button + .interface-language-button {
   box-shadow: inset 1px 0 0 var(--line);
 }
 
+button:focus-visible,
+.button-link:focus-visible,
 .brand:focus-visible,
-.app-nav a:focus-visible,
-.language-button:focus-visible {
+.app-nav a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -688,7 +689,7 @@ code {
     flex: 1;
   }
 
-  .language-switcher {
+  .interface-language-switcher {
     margin-left: 0;
   }
 }

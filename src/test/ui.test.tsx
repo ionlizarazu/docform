@@ -17,6 +17,12 @@ import PreviewPage from '../pages/PreviewPage'
 import UnexpectedErrorPage from '../pages/UnexpectedErrorPage'
 import { previewStorageKey } from '../pages/previewStorage'
 
+const languageButtons = {
+  eu: 'eu — Euskara',
+  es: 'es — Español',
+  en: 'en — English',
+} as const
+
 const summary: FormSummary = {
   route: 'abc123',
   displayName: 'Employment contract',
@@ -149,22 +155,24 @@ function renderFormPage(
   )
 }
 
+function renderLibrary(
+  forms: FormsApi = makeForms(),
+  locale: InterfaceLocale = 'en',
+) {
+  return render(
+    <MemoryRouter>
+      <I18nProvider initialLocale={locale}>
+        <ServicesProvider value={{ forms, preview: fakePreview }}>
+          <LibraryPage />
+        </ServicesProvider>
+      </I18nProvider>
+    </MemoryRouter>,
+  )
+}
+
 describe('LibraryPage', () => {
   it('lists stored forms and offers upload and import', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }))
 
     expect(await screen.findByText('Employment contract')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /new form/i })).toBeInTheDocument()
@@ -172,20 +180,7 @@ describe('LibraryPage', () => {
   })
 
   it('shows only the form name, uploaded date, and language badges', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }))
 
     expect(await screen.findByText('Employment contract')).toBeInTheDocument()
     expect(
@@ -202,20 +197,7 @@ describe('LibraryPage', () => {
   })
 
   it('keeps Open form, Export, and Delete as the only row actions', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }))
 
     const open = await screen.findByRole('link', { name: 'Open form' })
     expect(open).toHaveAttribute('href', '/f/abc123')
@@ -233,20 +215,7 @@ describe('LibraryPage', () => {
   })
 
   it('labels the rename pen with a localized accessible name and title', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="eu">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }), 'eu')
 
     const name = await screen.findByRole('link', { name: 'Employment contract' })
     const pen = screen.getByRole('button', { name: 'Izena aldatu' })
@@ -256,20 +225,7 @@ describe('LibraryPage', () => {
   })
 
   it('opens the inline rename editor from the pen and focuses the input', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }))
 
     await userEvent.click(
       await screen.findByRole('button', { name: 'Rename' }),
@@ -291,20 +247,7 @@ describe('LibraryPage', () => {
       current = { ...summary, displayName: name }
     })
 
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [current], rename }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [current], rename }))
 
     await userEvent.click(
       await screen.findByRole('button', { name: 'Rename' }),
@@ -324,20 +267,7 @@ describe('LibraryPage', () => {
   it('restores the original name when renaming is cancelled', async () => {
     const rename = vi.fn<FormsApi['rename']>(async () => undefined)
 
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary], rename }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary], rename }))
 
     await userEvent.click(
       await screen.findByRole('button', { name: 'Rename' }),
@@ -355,15 +285,7 @@ describe('LibraryPage', () => {
   })
 
   it('opens the bilingual new-form panel', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider value={{ forms: makeForms(), preview: fakePreview }}>
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary()
 
     await userEvent.click(screen.getByRole('button', { name: /new form/i }))
     expect(screen.getByLabelText('Template 1')).toBeInTheDocument()
@@ -374,30 +296,20 @@ describe('LibraryPage', () => {
   })
 
   it('localizes package import failures and hides the raw diagnostic', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({
-                importPackage: async () => ({
-                  ok: false,
-                  errors: [
-                    {
-                      code: 'invalid-package',
-                      detail: 'route-mismatch',
-                      message: 'raw diagnostic',
-                    },
-                  ],
-                }),
-              }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+    const { container } = renderLibrary(
+      makeForms({
+        importPackage: async () => ({
+          ok: false,
+          errors: [
+            {
+              code: 'invalid-package',
+              detail: 'route-mismatch',
+              message: 'raw diagnostic',
+            },
+          ],
+        }),
+      }),
+      'es',
     )
 
     const input = container.querySelector(
@@ -418,20 +330,7 @@ describe('LibraryPage', () => {
 
   it('localizes the delete confirmation', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }), 'es')
 
     await userEvent.click(
       await screen.findByRole('button', { name: 'Eliminar' }),
@@ -444,23 +343,13 @@ describe('LibraryPage', () => {
 
   it('localizes library list failures', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({
-                list: async () => {
-                  throw new Error('raw diagnostic')
-                },
-              }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+    renderLibrary(
+      makeForms({
+        list: async () => {
+          throw new Error('raw diagnostic')
+        },
+      }),
+      'es',
     )
 
     expect(
@@ -470,24 +359,14 @@ describe('LibraryPage', () => {
   })
 
   it('localizes rename failures in Basque', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="eu">
-          <ServicesProvider
-            value={{
-              forms: makeForms({
-                list: async () => [summary],
-                rename: async () => {
-                  throw new TemplateFormError('not-found', 'raw diagnostic')
-                },
-              }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+    renderLibrary(
+      makeForms({
+        list: async () => [summary],
+        rename: async () => {
+          throw new TemplateFormError('not-found', 'raw diagnostic')
+        },
+      }),
+      'eu',
     )
 
     await userEvent.click(
@@ -649,13 +528,13 @@ describe('FormPage', () => {
 
     await userEvent.type(await screen.findByLabelText('Name'), 'Ada')
     await userEvent.selectOptions(screen.getByLabelText('Country'), 'France')
-    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
 
-    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.en })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
@@ -800,12 +679,12 @@ describe('PreviewPage', () => {
       screen.getByRole('tab', { name: 'en' }),
     ).toHaveAttribute('aria-selected', 'true')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
 
     expect(
       await screen.findByTitle('Vista previa aproximada'),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -1055,6 +934,11 @@ describe('App shell', () => {
       'es',
       'en',
     ])
+    for (const button of buttons) {
+      const accessibleName =
+        button.getAttribute('aria-label') ?? button.textContent ?? ''
+      expect(accessibleName).toContain(button.textContent)
+    }
   })
 
   it('removes the tagline and the old language select', () => {
@@ -1073,9 +957,9 @@ describe('App shell', () => {
     renderApp('/', 'es')
 
     const group = screen.getByRole('group', { name: 'Idioma de la interfaz' })
-    const euskara = within(group).getByRole('button', { name: 'Euskara' })
-    const espanol = within(group).getByRole('button', { name: 'Español' })
-    const english = within(group).getByRole('button', { name: 'English' })
+    const euskara = within(group).getByRole('button', { name: languageButtons.eu })
+    const espanol = within(group).getByRole('button', { name: languageButtons.es })
+    const english = within(group).getByRole('button', { name: languageButtons.en })
 
     expect(euskara).toHaveAttribute('lang', 'eu')
     expect(espanol).toHaveAttribute('lang', 'es')
@@ -1108,7 +992,7 @@ describe('App shell', () => {
     })
 
     expect(await screen.findByLabelText('Name')).toBeInTheDocument()
-    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'true')
     expect(navLink('Docs')).not.toHaveAttribute('aria-current')
   })
 
@@ -1129,7 +1013,7 @@ describe('App shell', () => {
     })
 
     expect(await screen.findByTitle('Approximate preview')).toBeInTheDocument()
-    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'true')
     expect(navLink('Docs')).not.toHaveAttribute('aria-current')
   })
 
@@ -1180,29 +1064,29 @@ describe('App shell', () => {
       'href',
       '/docs',
     )
-    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.en })).toHaveAttribute(
       'lang',
       'en',
     )
 
-    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('es')
-    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
-    expect(screen.getByRole('button', { name: 'English' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.en })).toHaveAttribute(
       'aria-pressed',
       'false',
     )
 
-    await userEvent.click(screen.getByRole('button', { name: 'Euskara' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.eu }))
     expect(
       screen.getByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('eu')
-    expect(screen.getByRole('button', { name: 'Euskara' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.eu })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -1216,12 +1100,12 @@ describe('App shell', () => {
       await screen.findByRole('heading', { name: 'Docform guide' }),
     ).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
     expect(
       screen.getByRole('heading', { name: 'Guía de Docform' }),
     ).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Euskara' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.eu }))
     expect(
       screen.getByRole('heading', { name: 'Docform gida' }),
     ).toBeInTheDocument()
@@ -1234,7 +1118,7 @@ describe('App shell', () => {
     expect(
       await screen.findByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Euskara' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.eu })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -1274,7 +1158,7 @@ describe('App shell', () => {
     await userEvent.upload(screen.getByLabelText('Plantilla 1'), file)
     await userEvent.clear(screen.getByLabelText('Idioma del documento 2'))
     await userEvent.type(screen.getByLabelText('Idioma del documento 2'), 'eu')
-    await userEvent.click(screen.getByRole('button', { name: 'Euskara' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.eu }))
 
     expect(await screen.findByLabelText('Txantiloia 1')).toBeInTheDocument()
     expect(screen.getByLabelText('Dokumentuaren hizkuntza 2')).toHaveValue('eu')
@@ -1410,29 +1294,19 @@ describe('App shell', () => {
     })
 
     renderApp('/', 'en')
-    await userEvent.click(screen.getByRole('button', { name: 'Español' }))
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
 
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Español' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
   })
 
   it('localizes the library and single-language badge', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary, summarySingle] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+    renderLibrary(
+      makeForms({ list: async () => [summary, summarySingle] }),
+      'es',
     )
 
     expect(await screen.findByText('Tus formularios')).toBeInTheDocument()

@@ -6,7 +6,7 @@
 
 **Status:** done
 
-- [x] The README describes the interface switcher as `eu | es | en` with the selected code in bold, notes the endonyms as accessible names, points to the Docs menu rather than a separate header link, and no longer claims a visible language count.
+- [x] The README describes the interface switcher as `eu | es | en` with the selected code in bold, notes that each button exposes its code and endonym as its accessible name, points to the Docs menu rather than a separate header link, and no longer claims a visible language count.
 - [x] The English, Spanish, and Basque guides describe the same switcher and menu in their own language, and still explain that interface language is independent of document language.
 - [x] The English and Basque library screenshots, plus the detected-fields, form, DOCX preview, and ODT preview screenshots, are regenerated from the redesigned UI.
 - [x] Every refreshed screenshot shows the indigo and warm-neutral palette and the new header; none shows the green header, tagline, or language dropdown.

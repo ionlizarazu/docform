@@ -77,7 +77,7 @@ No form data, routes, storage, packages, document behavior, or docs content chan
 - **Header structure:** the brand remains a link to the library. The tagline and the standalone Docs link are removed. The header contains the brand, a two-item menu, and the language switcher. The menu labels are localized: Forms/Formularios/Formularioak and Docs/Guía/Gida.
 - **Header layout:** brand on the left; menu next to it; language switcher pushed to the right. On narrow screens the header wraps, with the menu and language switcher remaining usable. A subtle bottom border separates the header from the page.
 - **Menu state:** **Forms** is active on the library and on form routes; **Docs** is active on the guide route. Active items use the accent color and weight, not a new icon or badge.
-- **Language switcher:** replace the select with a `role="group"` labelled as the interface language. It contains three buttons in the order `eu`, `es`, `en`. The visible text is the code; the accessible name is the endonym (Euskara, Español, English). Each button carries its language tag and `aria-pressed`; the selected button is bold. The separator between codes is visual only. The existing locale detection, persistence, and `setLocale` behavior are reused.
+- **Language switcher:** replace the select with a `role="group"` labelled as the interface language. It contains three buttons in the order `eu`, `es`, `en`. The visible text is the code; the accessible name includes the visible code and the endonym, for example `eu — Euskara`. Each button carries its language tag and `aria-pressed`; the selected button is bold. The separator between codes is visual only. The existing locale detection, persistence, and `setLocale` behavior are reused.
 - **No new language behavior:** the language set remains eu/es/en, the persisted preference remains the same, and switching language still does not change document languages or the docs language source.
 - **Library row:** remove the route fragment, the route label, and the language-count text. Keep the form-name link, uploaded date, language badges, and the three actions. The row becomes a name line, a metadata line, and an actions group.
 - **Rename control:** place a small inline-SVG pencil button immediately after the form name. It has a localized accessible label and title. Clicking it switches the name line to the existing inline rename input with Save and Cancel; the input receives focus. Rename is removed from the action group.
@@ -100,7 +100,7 @@ No form data, routes, storage, packages, document behavior, or docs content chan
 - Test a compact row: name, uploaded date, language badges, and Open/Export/Delete actions; assert that the route fragment and language-count text are absent.
 - Test the pen icon's accessible name, opening the inline input, saving a name, cancelling, and the existing rename error path.
 - Replace every existing test that uses the header `<select>` or its `Interface language` label with the new language-button group. This includes the App switcher, docs language switch, form answer-preservation, and preview tab tests.
-- Update the browser smoke to switch languages through the new buttons. Use the stable endonym accessible names rather than the visible two-letter codes, so the smoke works regardless of the current interface language. Keep the selected-state assertion on `aria-pressed`.
+- Update the browser smoke to switch languages through the new buttons. Use the accessible names that combine each visible code with its endonym (`eu — Euskara`, `es — Español`, `en — English`), so the smoke works regardless of the current interface language. Keep the selected-state assertion on `aria-pressed`.
 - Verify the palette, spacing, header wrapping, and compact row visually through the smoke screenshots. Do not add brittle tests that read computed colors.
 - Prior art: the existing App shell tests, LibraryPage tests, docs tests, and real-Chrome smoke. No new testing stack is introduced.
 
@@ -121,7 +121,7 @@ No form data, routes, storage, packages, document behavior, or docs content chan
 ## Further Notes
 
 - The selected language is bold visually and `aria-pressed` semantically. Assistive technology does not need to infer the bold style.
-- The visible switcher uses codes because that is the requested design; the endonyms remain accessible names so the controls are not cryptic to screen-reader users.
+- The visible switcher uses codes because that is the requested design; the accessible names include both the visible code and the endonym so the controls are not cryptic to screen-reader users and satisfy label-in-name.
 - The route remains in the URL even though it is no longer shown in the list. Removing it from the row is a presentation change, not a routing change.
 - The language badges are the only language metadata in the row; the redundant count is intentionally removed.
 - The pencil should remain visible rather than appearing only on hover, so it is discoverable and keyboard reachable.
