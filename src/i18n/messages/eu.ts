@@ -40,7 +40,6 @@ export const eu: Messages = {
   save: 'Gorde',
   cancel: 'Ezeztatu',
   formNameLabel: 'Formularioaren izena',
-  routeLabel: 'Ibilbidea',
   uploadedLabel: 'Igoera',
   deleteConfirm:
     'Formulario hau ezabatu? Bere txantiloiak eta ibilbidea kenduko dira.',
@@ -58,7 +57,6 @@ export const eu: Messages = {
     'Aplikazioak ustekabeko errore bat aurkitu du. Freskatu orria edo itzuli liburutegira.',
   backToLibrary: 'Itzuli formularioetara',
   singleLanguage: 'Hizkuntza bakarra',
-  languageCount: (count) => `${count} hizkuntza`,
   newFormTitle: 'Formulario berria',
   newFormHint:
     'Hizkuntza bakoitzeko txantiloiak etiketa eta eremu-mota berberak adierazi behar ditu. Aukera-eremuak posizioaren arabera parekatzen dira, beraz, mantendu ordena bera.',

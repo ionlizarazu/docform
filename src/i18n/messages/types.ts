@@ -33,7 +33,6 @@ export interface Messages {
   save: string
   cancel: string
   formNameLabel: string
-  routeLabel: string
   uploadedLabel: string
   deleteConfirm: string
   errorsTitle: string
@@ -48,7 +47,6 @@ export interface Messages {
   errorBody: string
   backToLibrary: string
   singleLanguage: string
-  languageCount: (count: number) => string
   newFormTitle: string
   newFormHint: string
   createForm: string

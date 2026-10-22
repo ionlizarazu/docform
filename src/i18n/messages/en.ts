@@ -38,7 +38,6 @@ export const en: Messages = {
   save: 'Save',
   cancel: 'Cancel',
   formNameLabel: 'Form name',
-  routeLabel: 'Route',
   uploadedLabel: 'Uploaded',
   deleteConfirm: 'Delete this form? Its stored templates and route will be removed.',
   errorsTitle: 'Could not complete that action',
@@ -55,8 +54,6 @@ export const en: Messages = {
     'The app hit an unexpected error. Reload the page or return to the library.',
   backToLibrary: 'Back to forms',
   singleLanguage: 'Single language',
-  languageCount: (count) =>
-    `${count} ${count === 1 ? 'language' : 'languages'}`,
   newFormTitle: 'New form',
   newFormHint:
     'Every language template must declare the same labels and field kinds. Select options are paired by position, so keep their order aligned.',
