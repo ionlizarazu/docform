@@ -24,7 +24,6 @@ export interface Messages {
   librarySubtitle: string
   libraryEmpty: string
   upload: string
-  uploadHint: string
   importPackage: string
   openForm: string
   rename: string

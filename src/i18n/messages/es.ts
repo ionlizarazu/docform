@@ -29,8 +29,6 @@ export const es: Messages = {
   libraryEmpty:
     'Aún no hay formularios. Sube una plantilla DOCX u ODT para empezar.',
   upload: 'Nuevo formulario',
-  uploadHint:
-    'Añade una plantilla DOCX u ODT por idioma, de hasta 25 MB cada una. Declara los campos con {{Label}}.',
   importPackage: 'Importar paquete',
   openForm: 'Abrir formulario',
   rename: 'Renombrar',

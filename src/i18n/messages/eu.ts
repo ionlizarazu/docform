@@ -30,8 +30,6 @@ export const eu: Messages = {
   libraryEmpty:
     'Oraindik ez dago formulariorik. Igo DOCX edo ODT txantiloi bat hasteko.',
   upload: 'Formulario berria',
-  uploadHint:
-    'Gehitu DOCX edo ODT txantiloi bat hizkuntza bakoitzeko, gehienez 25 MB bakoitza. Adierazi eremuak {{Label}}-rekin.',
   importPackage: 'Inportatu paketea',
   openForm: 'Ireki formularioa',
   rename: 'Izena aldatu',

@@ -170,13 +170,119 @@ function renderLibrary(
   )
 }
 
+function appearsBefore(first: Element, second: Element): boolean {
+  return (
+    first !== second &&
+    (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !==
+      0
+  )
+}
+
 describe('LibraryPage', () => {
+  it.each([
+    [
+      'en',
+      'Add one DOCX or ODT template per language, up to 25 MB each. Declare fields with {{Label}}.',
+    ],
+    [
+      'es',
+      'Añade una plantilla DOCX u ODT por idioma, de hasta 25 MB cada una. Declara los campos con {{Label}}.',
+    ],
+    [
+      'eu',
+      'Gehitu DOCX edo ODT txantiloi bat hizkuntza bakoitzeko, gehienez 25 MB bakoitza. Adierazi eremuak {{Label}}-rekin.',
+    ],
+  ] as const)('does not show the removed upload hint in %s', (locale, hint) => {
+    renderLibrary(makeForms(), locale)
+
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByText(hint)).not.toBeInTheDocument()
+  })
+
   it('lists stored forms and offers upload and import', async () => {
     renderLibrary(makeForms({ list: async () => [summary] }))
 
     expect(await screen.findByText('Employment contract')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /new form/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /import package/i })).toBeInTheDocument()
+  })
+
+  it('puts New form and Import package in a toolbar above the list, in that order', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }))
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Your forms' })
+    const toolbar = screen.getByRole('toolbar', { name: 'Your forms' })
+    expect(within(toolbar).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'New form',
+      'Import package',
+    ])
+
+    const titleBlock = heading.parentElement as HTMLElement
+    expect(within(titleBlock).queryByRole('button')).not.toBeInTheDocument()
+    expect(
+      within(titleBlock).getByText('Templates you upload stay in this browser.'),
+    ).toBeInTheDocument()
+
+    const list = await screen.findByRole('list')
+    expect(appearsBefore(heading, toolbar)).toBe(true)
+    expect(appearsBefore(toolbar, list)).toBe(true)
+  })
+
+  it('keeps the empty state below the toolbar', async () => {
+    renderLibrary()
+
+    const toolbar = screen.getByRole('toolbar', { name: 'Your forms' })
+    const empty = await screen.findByText(
+      'No forms yet. Upload a DOCX or ODT template to begin.',
+    )
+    expect(appearsBefore(toolbar, empty)).toBe(true)
+  })
+
+  it('opens the New form panel below the toolbar and above the list', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'New form' }))
+
+    const toolbar = screen.getByRole('toolbar', { name: 'Your forms' })
+    const panelHeading = screen.getByRole('heading', {
+      level: 2,
+      name: 'New form',
+    })
+    const list = screen
+      .getByRole('link', { name: 'Employment contract' })
+      .closest('ul') as HTMLElement
+    expect(appearsBefore(toolbar, panelHeading)).toBe(true)
+    expect(appearsBefore(panelHeading, list)).toBe(true)
+  })
+
+  it('keeps package import errors below the toolbar', async () => {
+    const { container } = renderLibrary(
+      makeForms({
+        importPackage: async () => ({
+          ok: false,
+          errors: [
+            {
+              code: 'invalid-package',
+              detail: 'route-mismatch',
+              message: 'raw diagnostic',
+            },
+          ],
+        }),
+      }),
+    )
+
+    const input = container.querySelector(
+      'input[type=file][accept*="json"]',
+    ) as HTMLInputElement
+    await userEvent.upload(
+      input,
+      new File(['{}'], 'bad.formpack.json', { type: 'application/json' }),
+    )
+
+    const alert = await screen.findByRole('alert')
+    expect(
+      appearsBefore(screen.getByRole('toolbar', { name: 'Your forms' }), alert),
+    ).toBe(true)
   })
 
   it('shows only the form name, uploaded date, and language badges', async () => {
@@ -284,8 +390,79 @@ describe('LibraryPage', () => {
     expect(screen.queryByLabelText('Form name')).not.toBeInTheDocument()
   })
 
-  it('opens the bilingual new-form panel', async () => {
-    renderLibrary()
+  it('opens the file picker from Import package and imports the chosen package', async () => {
+    const picker = vi
+      .spyOn(HTMLInputElement.prototype, 'click')
+      .mockImplementation(() => undefined)
+    const importPackage = vi.fn<FormsApi['importPackage']>(async () => ({
+      ok: true,
+      route: 'new123',
+      displayName: 'Imported contract',
+      definition: { route: 'new123', primaryLocale: 'en', variants: [] },
+      primaryLocale: 'en',
+      locales: ['en'],
+      existed: false,
+    }))
+    const { container } = renderLibrary(makeForms({ importPackage }))
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Import package' }),
+    )
+    expect(picker).toHaveBeenCalledTimes(1)
+
+    const input = container.querySelector(
+      'input[type=file][accept*="json"]',
+    ) as HTMLInputElement
+    const file = new File(['{}'], 'contract.formpack.json', {
+      type: 'application/json',
+    })
+    await userEvent.upload(input, file)
+
+    await waitFor(() => expect(importPackage).toHaveBeenCalledWith(file))
+  })
+
+  it('exports a form package from the row action', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const download = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined)
+    const exportPackage = vi.fn<FormsApi['exportPackage']>(async () => ({
+      blob: new Blob(['{}']),
+      filename: 'contract.formpack.json',
+    }))
+    renderLibrary(makeForms({ list: async () => [summary], exportPackage }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Export' }),
+    )
+
+    await waitFor(() => expect(exportPackage).toHaveBeenCalledWith('abc123'))
+    expect(download).toHaveBeenCalledTimes(1)
+  })
+
+  it('deletes a form after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const remove = vi.fn<FormsApi['remove']>(async () => undefined)
+    const list = vi
+      .fn<FormsApi['list']>()
+      .mockResolvedValueOnce([summary])
+      .mockResolvedValueOnce([])
+    renderLibrary(makeForms({ list, remove }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Delete' }),
+    )
+
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('abc123'))
+    expect(
+      await screen.findByText(
+        'No forms yet. Upload a DOCX or ODT template to begin.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the bilingual new-form panel', async () => {    renderLibrary()
 
     await userEvent.click(screen.getByRole('button', { name: /new form/i }))
     expect(screen.getByLabelText('Template 1')).toBeInTheDocument()

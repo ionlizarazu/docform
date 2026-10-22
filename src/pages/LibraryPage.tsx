@@ -224,45 +224,48 @@ export default function LibraryPage() {
     <section className="page">
       <div className="page-heading">
         <div>
-          <h1>{messages.libraryTitle}</h1>
+          <h1 id="library-title">{messages.libraryTitle}</h1>
           <p className="muted">{messages.librarySubtitle}</p>
-        </div>
-        <div className="upload-actions">
-          <button
-            type="button"
-            onClick={() => {
-              setErrors([])
-              setShowNewForm((current) => !current)
-            }}
-            disabled={busy}
-          >
-            {messages.upload}
-          </button>
-          <input
-            ref={importRef}
-            className="visually-hidden"
-            type="file"
-            accept=".json,.formpack.json,application/json"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              if (file) {
-                void handleImport(file)
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => importRef.current?.click()}
-            disabled={busy}
-          >
-            {messages.importPackage}
-          </button>
         </div>
       </div>
 
-      <p className="hint">{messages.uploadHint}</p>
+      <div
+        className="library-toolbar"
+        role="toolbar"
+        aria-labelledby="library-title"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setErrors([])
+            setShowNewForm((current) => !current)
+          }}
+          disabled={busy}
+        >
+          {messages.upload}
+        </button>
+        <input
+          ref={importRef}
+          className="visually-hidden"
+          type="file"
+          accept=".json,.formpack.json,application/json"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) {
+              void handleImport(file)
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => importRef.current?.click()}
+          disabled={busy}
+        >
+          {messages.importPackage}
+        </button>
+      </div>
 
       {showNewForm && (
         <NewFormPanel

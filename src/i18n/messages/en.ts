@@ -28,8 +28,6 @@ export const en: Messages = {
   librarySubtitle: 'Templates you upload stay in this browser.',
   libraryEmpty: 'No forms yet. Upload a DOCX or ODT template to begin.',
   upload: 'New form',
-  uploadHint:
-    'Add one DOCX or ODT template per language, up to 25 MB each. Declare fields with {{Label}}.',
   importPackage: 'Import package',
   openForm: 'Open form',
   rename: 'Rename',
