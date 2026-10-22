@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useServices } from '../app/services'
 import type { FilledDocument, FormView } from '../domain/types'
 import { useI18n } from '../i18n/context'
 import { localizeError } from '../i18n/errors'
 import { previewPrintMessage } from '../preview/renderer'
 import type { PreviewResult } from '../preview/types'
+import { BackLink } from '../ui/BackLink'
 import { bytesToBlob, downloadBlob } from '../ui/download'
 import NotFoundPage from './NotFoundPage'
 import { previewStorageKey } from './previewStorage'
@@ -132,13 +133,11 @@ export default function PreviewPage() {
   if (failure !== null && form === undefined) {
     return (
       <section className="page">
+        <BackLink to={`/f/${route}`} label={messages.backToForm} />
         <h1>{messages.errorsTitle}</h1>
         <p className="muted">
           {localizeError(failure, messages, messages.errorDetail)}
         </p>
-        <Link className="button-link" to={`/f/${route}`}>
-          {messages.backToForm}
-        </Link>
       </section>
     )
   }
@@ -154,11 +153,9 @@ export default function PreviewPage() {
   if (noAnswers) {
     return (
       <section className="page">
+        <BackLink to={`/f/${route}`} label={messages.backToForm} />
         <h1>{messages.previewTitle}</h1>
         <p className="muted">{messages.previewNeedsAnswers}</p>
-        <Link className="button-link" to={`/f/${route}`}>
-          {messages.backToForm}
-        </Link>
       </section>
     )
   }
@@ -179,11 +176,9 @@ export default function PreviewPage() {
 
   return (
     <section className="page">
+      <BackLink to={`/f/${route}`} label={messages.backToForm} />
       <div className="page-heading">
         <div>
-          <p className="eyebrow">
-            <Link to={`/f/${route}`}>{messages.backToForm}</Link>
-          </p>
           <h1>{messages.previewTitle}</h1>
           <p className="muted">
             {form.variantCount > 1

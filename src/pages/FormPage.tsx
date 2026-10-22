@@ -5,6 +5,7 @@ import type { FormView } from '../domain/types'
 import { fieldByLabel, primaryVariantOf } from '../domain/variants'
 import { useI18n } from '../i18n/context'
 import { localizeError } from '../i18n/errors'
+import { BackLink } from '../ui/BackLink'
 import { bytesToBlob, downloadBlob } from '../ui/download'
 import NotFoundPage from './NotFoundPage'
 import { previewStorageKey } from './previewStorage'
@@ -60,13 +61,11 @@ export default function FormPage() {
   if (loadError !== null) {
     return (
       <section className="page">
+        <BackLink to="/" label={messages.backToLibrary} />
         <h1>{messages.loadFailed}</h1>
         <p className="muted">
           {localizeError(loadError, messages, messages.errorDetail)}
         </p>
-        <Link className="button-link" to="/">
-          {messages.backToLibrary}
-        </Link>
       </section>
     )
   }
@@ -86,6 +85,7 @@ export default function FormPage() {
   if (detected) {
     return (
       <section className="page">
+        <BackLink to="/" label={messages.backToLibrary} />
         <div className="page-heading">
           <div>
             <p className="eyebrow">{form.displayName}</p>
@@ -95,9 +95,6 @@ export default function FormPage() {
           <div className="upload-actions">
             <Link className="button-link" to={`/f/${form.route}`}>
               {messages.openForm}
-            </Link>
-            <Link className="button-link secondary" to="/">
-              {messages.backToLibrary}
             </Link>
           </div>
         </div>
@@ -203,31 +200,28 @@ export default function FormPage() {
 
   return (
     <section className="page">
+      <BackLink
+        to="/"
+        label={messages.backToLibrary}
+        onClick={(event) => {
+          if (dirty && !window.confirm(messages.leaveWarning)) {
+            event.preventDefault()
+          }
+        }}
+      />
       <div className="page-heading">
         <div>
-          <p className="eyebrow">
-            <Link
-              to="/"
-              onClick={(event) => {
-                if (dirty && !window.confirm(messages.leaveWarning)) {
-                  event.preventDefault()
-                }
-              }}
-            >
-              {messages.backToLibrary}
-            </Link>
-          </p>
           <h1>{form.displayName}</h1>
+          <div className="form-badges">
+            {form.locales.map((documentLocale) => (
+              <span className="badge" key={documentLocale}>
+                {documentLocale === 'und'
+                  ? messages.singleLanguage
+                  : documentLocale}
+              </span>
+            ))}
+          </div>
           <p className="muted">{messages.fieldsOptional}</p>
-        </div>
-        <div className="upload-actions">
-          {form.locales.map((documentLocale) => (
-            <span className="badge" key={documentLocale}>
-              {documentLocale === 'und'
-                ? messages.singleLanguage
-                : documentLocale}
-            </span>
-          ))}
         </div>
       </div>
 
