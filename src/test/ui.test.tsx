@@ -137,6 +137,12 @@ function makeForms(overrides: Partial<FormsApi> = {}): FormsApi {
   return { ...base, ...overrides }
 }
 
+function expectBefore(first: HTMLElement, second: HTMLElement) {
+  expect(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+}
+
 function renderFormPage(
   forms: FormsApi,
   entry = '/f/abc123',
@@ -405,6 +411,58 @@ describe('FormPage', () => {
     expect(screen.getByRole('option', { name: 'Choose…' })).toBeInTheDocument()
   })
 
+  it('puts the shared back link above the form title and keeps the leave warning', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderFormPage(makeForms({ get: async () => view }))
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', { name: 'Employment contract' })
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+    expect(back.closest('.eyebrow')).toBeNull()
+    expect(back.closest('.upload-actions')).toBeNull()
+    expect(back.closest('.form-actions')).toBeNull()
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Ada')
+    await userEvent.click(back)
+
+    expect(confirm).toHaveBeenCalledWith(
+      'You have unsaved answers. Leave this page anyway?',
+    )
+  })
+
+  it('places the language badges after the title and before the optional-fields note', async () => {
+    renderFormPage(makeForms({ get: async () => view }))
+
+    const heading = await screen.findByRole('heading', {
+      name: 'Employment contract',
+    })
+    const english = screen.getByText('en')
+    const spanish = screen.getByText('es')
+    const note = screen.getByText('All fields are optional.')
+
+    expectBefore(heading, english)
+    expectBefore(english, spanish)
+    expectBefore(spanish, note)
+    expect(english.closest('.upload-actions')).toBeNull()
+    expect(spanish.closest('.upload-actions')).toBeNull()
+  })
+
+  it('keeps the localized single-language badge with the form title', async () => {
+    renderFormPage(
+      makeForms({ get: async () => viewSingle }),
+      '/f/ghi789',
+      'es',
+    )
+
+    const heading = await screen.findByRole('heading', { name: 'Legacy contract' })
+    const badge = screen.getByText('Idioma único')
+    const note = screen.getByText('Todos los campos son opcionales.')
+
+    expectBefore(heading, badge)
+    expectBefore(badge, note)
+  })
+
   it('fills answers and downloads the filled document', async () => {
     const fill = vi.fn<FormsApi['fill']>(async () => filledSet)
     renderFormPage(makeForms({ get: async () => view, fill }))
@@ -430,6 +488,22 @@ describe('FormPage', () => {
     expect(screen.getByText('Spain · France')).toBeInTheDocument()
     expect(screen.getByText('España · Francia')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open form/i })).toBeInTheDocument()
+  })
+
+  it('puts the back link above the detected-fields heading and keeps Open form', async () => {
+    renderFormPage(makeForms({ get: async () => view }), '/f/abc123?detected=1')
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', { name: 'Detected fields' })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+    expect(back.closest('.eyebrow')).toBeNull()
+    expect(back.closest('.upload-actions')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Open form' })).toHaveAttribute(
+      'href',
+      '/f/abc123',
+    )
   })
 
   it('localizes the detected screen and tags template text with its language', async () => {
@@ -568,6 +642,39 @@ describe('FormPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('puts the back link above the load-failure heading', async () => {
+    renderFormPage(
+      makeForms({
+        get: async () => {
+          throw new TemplateFormError('not-found', 'raw diagnostic', {
+            detail: 'not-found',
+          })
+        },
+      }),
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', {
+      name: 'This form could not be loaded.',
+    })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+    expect(back.closest('.eyebrow')).toBeNull()
+  })
+
+  it('puts the back link above the missing-form heading', async () => {
+    renderFormPage(makeForms({ get: async () => null }))
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', {
+      name: 'Form not found on this device',
+    })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+  })
+
   it('localizes form load failures', async () => {
     renderFormPage(
       makeForms({
@@ -647,6 +754,120 @@ describe('PreviewPage', () => {
     const frame = await screen.findByTitle('Approximate preview')
     expect(frame.tagName).toBe('IFRAME')
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
+  })
+
+  it('puts the preview back link above the heading and keeps print, download, and tabs', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const preview: PreviewRenderer = {
+      render: async () => ({
+        kind: 'html',
+        html: '<!doctype html><html><body>Preview</body></html>',
+      }),
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to form' })
+    const heading = screen.getByRole('heading', { name: 'Approximate preview' })
+
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, heading)
+    expect(back.closest('.eyebrow')).toBeNull()
+    expect(back.closest('.upload-actions')).toBeNull()
+
+    expect(
+      screen.getByRole('tablist', { name: 'Document languages' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Download filled documents' }),
+    ).toBeInTheDocument()
+  })
+
+  it('puts the back link above the preview form-load failure heading', async () => {
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({
+                get: async () => {
+                  throw new TemplateFormError('not-found', 'raw diagnostic', {
+                    detail: 'not-found',
+                  })
+                },
+              }),
+              preview: fakePreview,
+            }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to form' })
+    const heading = screen.getByRole('heading', {
+      name: 'Could not complete that action',
+    })
+
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, heading)
+  })
+
+  it('puts the back link above the heading when filling the preview fails', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const fill = vi.fn<FormsApi['fill']>(async () => {
+      throw new TemplateFormError('invalid-answer', 'raw diagnostic', {
+        detail: 'invalid-answer',
+        params: { label: 'Name', answer: 'x' },
+      })
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ get: async () => view, fill }),
+              preview: fakePreview,
+            }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to form' })
+    const heading = screen.getByRole('heading', { name: 'Approximate preview' })
+
+    expectBefore(back, heading)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not complete that action',
+    )
   })
 
   it('localizes preview chrome and keeps document-language tabs independent', async () => {
@@ -870,9 +1091,11 @@ describe('PreviewPage', () => {
         'Rellena el formulario primero para previsualizar un documento.',
       ),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: 'Volver al formulario' }),
-    ).toBeInTheDocument()
+    const back = screen.getByRole('link', { name: 'Volver al formulario' })
+    const heading = screen.getByRole('heading', { name: 'Vista previa aproximada' })
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, heading)
+    expect(back.closest('.eyebrow')).toBeNull()
   })
 })
 
@@ -1336,6 +1559,33 @@ describe('App shell', () => {
     expect(
       await screen.findByRole('heading', { name: 'Página no encontrada' }),
     ).toBeInTheDocument()
+  })
+
+  it('puts the unknown-route back link above the heading', async () => {
+    renderApp('/missing', 'en')
+
+    const back = screen.getByRole('link', { name: 'Back to forms' })
+    const heading = await screen.findByRole('heading', { name: 'Page not found' })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+    expect(back.closest('.eyebrow')).toBeNull()
+  })
+
+  it('puts the unexpected-error back link above the heading', () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="en">
+          <UnexpectedErrorPage />
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = screen.getByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', { name: 'Something went wrong' })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
   })
 
   it('localizes the unknown-route page in Basque', async () => {

@@ -27,6 +27,19 @@ describe('DocsPage', () => {
     expect(screen.getByRole('heading', { name: section })).toBeInTheDocument()
   })
 
+  it('puts the back link above the guide article', () => {
+    renderDocs('en')
+
+    const back = screen.getByRole('link', { name: 'Back to forms' })
+    const article = screen.getByRole('article')
+
+    expect(back).toHaveAttribute('href', '/')
+    expect(
+      back.compareDocumentPosition(article) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(back.closest('.eyebrow')).toBeNull()
+  })
+
   it('renders markdown tables and placeholder syntax', () => {
     renderDocs('en')
 

@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import { marked } from 'marked'
 import en from '../../docs/guides/en.md?raw'
 import es from '../../docs/guides/es.md?raw'
 import eu from '../../docs/guides/eu.md?raw'
 import { useI18n } from '../i18n/context'
 import type { InterfaceLocale } from '../i18n/locales'
+import { BackLink } from '../ui/BackLink'
 
 const guides: Record<InterfaceLocale, string> = { en, es, eu }
 
@@ -18,9 +18,7 @@ export default function DocsPage() {
 
   return (
     <section className="page docs-page">
-      <p className="eyebrow">
-        <Link to="/">{messages.backToLibrary}</Link>
-      </p>
+      <BackLink to="/" label={messages.backToLibrary} />
       <article
         className="docs-content"
         dangerouslySetInnerHTML={{ __html: html }}

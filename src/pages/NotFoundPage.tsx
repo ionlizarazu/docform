@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
 import { useI18n } from '../i18n/context'
+import { BackLink } from '../ui/BackLink'
 
 export default function NotFoundPage({
   title,
@@ -12,11 +12,9 @@ export default function NotFoundPage({
 
   return (
     <section className="page">
+      <BackLink to="/" label={messages.backToLibrary} />
       <h1>{title ?? messages.notFoundTitle}</h1>
       <p className="muted">{body ?? messages.notFoundBody}</p>
-      <Link className="button-link" to="/">
-        {messages.backToLibrary}
-      </Link>
     </section>
   )
 }
