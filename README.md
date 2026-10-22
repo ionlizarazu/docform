@@ -47,7 +47,7 @@ The app cannot detect two option lists that happen to have the same length but d
 
 ## Interface languages
 
-The header has an **Interface language** switcher shown as `eu | es | en`, with the selected code in bold. Their accessible names are Euskara, Español, and English. The choice is detected from the browser on first use, remembered in browser-local storage, and used for the chrome, validation, errors, dates, and accessibility labels.
+The header has an **Interface language** switcher shown as `eu | es | en`, with the selected code in bold. Each button exposes both its visible code and its language name to assistive technology, for example `eu — Euskara`, not only the endonym. The choice is detected from the browser on first use, remembered in browser-local storage, and used for the chrome, validation, errors, dates, and accessibility labels.
 
 The interface locale is independent of document languages. Switching it never changes the primary variant, template labels or options, document-language tabs, form data, or generated documents. Template content is not translated. The app updates `<html lang>` for the interface and marks template-derived text with its document language where known.
 

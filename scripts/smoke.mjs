@@ -27,6 +27,11 @@ const STYLE_NS = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0'
 const FO_NS = 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0'
 const MANIFEST_NS = 'urn:oasis:names:tc:opendocument:xmlns:manifest:1.0'
 const META_NS = 'urn:oasis:names:tc:opendocument:xmlns:meta:1.0'
+const languageNames = {
+  eu: 'eu — Euskara',
+  es: 'es — Español',
+  en: 'en — English',
+}
 
 function escapeXml(value) {
   return value
@@ -239,10 +244,15 @@ async function main() {
     consoleErrors.push(`pageerror: ${error.message}`)
   })
 
+  async function capture(name) {
+    await page.mouse.move(1, 1)
+    await page.screenshot({ path: path.join(outDir, name), fullPage: true })
+  }
+
   try {
     await waitForServer(baseUrl)
     await page.goto(baseUrl)
-    await page.screenshot({ path: path.join(outDir, '01-library.png'), fullPage: true })
+    await capture('01-library.png')
 
     if ((await page.getByRole('combobox').count()) !== 0) {
       throw new Error('The old header language select is still rendered')
@@ -261,10 +271,21 @@ async function main() {
       throw new Error('The removed tagline is still rendered')
     }
 
-    async function selectInterfaceLanguage(endonym, code, headingName) {
-      const button = page.getByRole('button', { name: endonym })
+    async function selectInterfaceLanguage(code, headingName) {
+      const accessibleName = languageNames[code]
+      const button = page.getByRole('button', { name: accessibleName })
       await button.click()
       await page.getByRole('heading', { name: headingName }).waitFor()
+
+      if (!accessibleName.includes(code)) {
+        throw new Error(`The ${code} language button does not expose its visible code`)
+      }
+      const label = await button.getAttribute('aria-label')
+      if (label !== accessibleName) {
+        throw new Error(
+          `The ${code} language button accessible name is ${label}, expected ${accessibleName}`,
+        )
+      }
 
       const pressed = await button.getAttribute('aria-pressed')
       if (pressed !== 'true') {
@@ -272,16 +293,16 @@ async function main() {
           `The ${code} language button is not marked as selected (aria-pressed=${pressed})`,
         )
       }
-      for (const other of ['Euskara', 'Español', 'English']) {
-        if (other === endonym) {
+      for (const [otherCode, otherName] of Object.entries(languageNames)) {
+        if (otherCode === code) {
           continue
         }
         const otherPressed = await page
-          .getByRole('button', { name: other })
+          .getByRole('button', { name: otherName })
           .getAttribute('aria-pressed')
         if (otherPressed !== 'false') {
           throw new Error(
-            `The ${other} language button remained selected after choosing ${endonym}`,
+            `The ${otherCode} language button remained selected after choosing ${code}`,
           )
         }
       }
@@ -290,32 +311,26 @@ async function main() {
       }
     }
 
-    await selectInterfaceLanguage('Euskara', 'eu', 'Zure formularioak')
+    await selectInterfaceLanguage('eu', 'Zure formularioak')
     if ((await page.getByRole('button', { name: 'Formulario berria' }).count()) === 0) {
       throw new Error('The Basque library chrome did not render')
     }
-    await page.screenshot({
-      path: path.join(outDir, '01-library-eu.png'),
-      fullPage: true,
-    })
+    await capture('01-library-eu.png')
 
-    await selectInterfaceLanguage('Español', 'es', 'Tus formularios')
+    await selectInterfaceLanguage('es', 'Tus formularios')
     if ((await page.getByRole('button', { name: 'Nuevo formulario' }).count()) === 0) {
       throw new Error('The Spanish library chrome did not render')
     }
-    await page.screenshot({
-      path: path.join(outDir, '01-library-es.png'),
-      fullPage: true,
-    })
+    await capture('01-library-es.png')
 
-    await selectInterfaceLanguage('English', 'en', 'Your forms')
+    await selectInterfaceLanguage('en', 'Your forms')
 
     await page.getByRole('button', { name: 'New form' }).click()
     await page.getByLabel('Template 1').setInputFiles(docxPath)
     await page.getByLabel('Template 2').setInputFiles(odtPath)
     await page.getByRole('button', { name: 'Create form' }).click()
     await page.getByText('Detected fields').waitFor()
-    await page.screenshot({ path: path.join(outDir, '02-detected.png'), fullPage: true })
+    await capture('02-detected.png')
 
     await page.getByRole('link', { name: 'Open form' }).click()
     await page.getByLabel('Name').waitFor()
@@ -338,7 +353,7 @@ async function main() {
     await page.getByLabel('Country').selectOption('France')
     await page.getByLabel('Notes').fill('First line\nSecond line')
     await page.getByLabel('Reference').fill('REF-42')
-    await page.screenshot({ path: path.join(outDir, '03-form.png'), fullPage: true })
+    await capture('03-form.png')
 
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Download filled documents' }).click()
@@ -381,7 +396,7 @@ async function main() {
     await page.getByRole('button', { name: 'Preview' }).click()
     await page.locator('iframe.preview-frame').waitFor()
     await page.waitForTimeout(2000)
-    await page.screenshot({ path: path.join(outDir, '04-docx-preview.png'), fullPage: true })
+    await capture('04-docx-preview.png')
     const docxNotice = await page.getByText('The preview could not be rendered').count()
     if (docxNotice > 0) {
       throw new Error('DOCX preview fell back to unavailable')
@@ -390,16 +405,48 @@ async function main() {
     await page.getByRole('tab', { name: 'es' }).click()
     await page.waitForTimeout(5000)
     await page.locator('iframe.preview-frame').waitFor({ timeout: 45000 })
-    await page.screenshot({ path: path.join(outDir, '05-odt-preview.png'), fullPage: true })
+    await capture('05-odt-preview.png')
     const odtNotice = await page.getByText('The preview could not be rendered').count()
     const odtReason = odtNotice > 0 ? await page.locator('.notice').innerText() : ''
 
     await page.goto(baseUrl)
     await page.getByText('sample-contract').waitFor()
-    await page.screenshot({
-      path: path.join(outDir, '06-library-populated.png'),
-      fullPage: true,
-    })
+    await capture('06-library-populated.png')
+
+    await page.setViewportSize({ width: 390, height: 900 })
+    if (!(await page.getByRole('navigation').isVisible())) {
+      throw new Error('The header menu is not visible on a narrow viewport')
+    }
+    if (
+      !(await page
+        .getByRole('group', { name: 'Interface language' })
+        .isVisible())
+    ) {
+      throw new Error(
+        'The interface-language group is not visible on a narrow viewport',
+      )
+    }
+    const overflow = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }))
+    if (overflow.scrollWidth > overflow.clientWidth) {
+      throw new Error(
+        `The narrow layout overflows horizontally (${overflow.scrollWidth} > ${overflow.clientWidth})`,
+      )
+    }
+    const rowMain = await page.locator('.form-row-main').first().boundingBox()
+    const rowActions = await page.locator('.form-actions').first().boundingBox()
+    if (rowMain === null || rowActions === null) {
+      throw new Error('The populated form row is missing its name or actions')
+    }
+    if (rowActions.y < rowMain.y + rowMain.height - 1) {
+      throw new Error(
+        'The form actions do not stack below the name and metadata on a narrow viewport',
+      )
+    }
+    await capture('08-library-narrow.png')
+    await page.setViewportSize({ width: 1280, height: 900 })
 
     const docsUrl = new URL('docs', baseUrl).toString()
     expectedFallbackUrl = docsUrl
@@ -410,10 +457,7 @@ async function main() {
       )
     }
     await page.getByRole('heading', { name: 'Docform guide' }).waitFor()
-    await page.screenshot({
-      path: path.join(outDir, '07-docs.png'),
-      fullPage: true,
-    })
+    await capture('07-docs.png')
     expectedFallbackUrl = null
 
     if (pagesMode) {
