@@ -60,10 +60,12 @@ The preview is approximate. It is useful for checking the layout, but the downlo
 
 There are two different language choices:
 
-- **Interface language** in the header changes the buttons, messages, dates, and this guide. The current choices are Euskara, Español, and English.
+- **Interface language** in the header changes the buttons, messages, dates, and this guide. It is shown as `eu | es | en`, with the selected code in bold; screen readers announce the choices as Euskara, Español, and English.
 - **Document language** belongs to a template. It controls the labels, options, and filled document for that language variant.
 
 Changing the interface language does not change the form's document languages or the documents you download.
+
+The header menu has **Forms**, which returns to the form library, and **Docs**, which opens this guide.
 
 ## 5. Back up or move a form
 
