@@ -23,14 +23,6 @@ describe('interface locale resolution', () => {
 })
 
 describe('interface formatting', () => {
-  it('pluralizes language counts in each locale', () => {
-    expect(messagesByLocale.en.languageCount(1)).toBe('1 language')
-    expect(messagesByLocale.en.languageCount(2)).toBe('2 languages')
-    expect(messagesByLocale.es.languageCount(1)).toBe('1 idioma')
-    expect(messagesByLocale.es.languageCount(2)).toBe('2 idiomas')
-    expect(messagesByLocale.eu.languageCount(2)).toBe('2 hizkuntza')
-  })
-
   it('formats dates with the interface locale', () => {
     const date = new Date('2026-01-15T12:00:00Z')
     const en = formatDate(date, 'en')

@@ -39,7 +39,6 @@ export const es: Messages = {
   save: 'Guardar',
   cancel: 'Cancelar',
   formNameLabel: 'Nombre del formulario',
-  routeLabel: 'Ruta',
   uploadedLabel: 'Subido',
   deleteConfirm:
     '¿Eliminar este formulario? Se eliminarán sus plantillas y su ruta.',
@@ -57,7 +56,6 @@ export const es: Messages = {
     'La aplicación ha encontrado un error inesperado. Recarga la página o vuelve a la biblioteca.',
   backToLibrary: 'Volver a los formularios',
   singleLanguage: 'Idioma único',
-  languageCount: (count) => `${count} ${count === 1 ? 'idioma' : 'idiomas'}`,
   newFormTitle: 'Nuevo formulario',
   newFormHint:
     'Cada plantilla de idioma debe declarar las mismas etiquetas y tipos de campo. Las opciones de selección se emparejan por posición, así que mantén el mismo orden.',

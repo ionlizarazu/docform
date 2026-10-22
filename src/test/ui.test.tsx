@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -169,7 +169,189 @@ describe('LibraryPage', () => {
     expect(await screen.findByText('Employment contract')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /new form/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /import package/i })).toBeInTheDocument()
-    expect(screen.getByText('2 languages')).toBeInTheDocument()
+  })
+
+  it('shows only the form name, uploaded date, and language badges', async () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary] }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Employment contract')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        (content, element) =>
+          element?.tagName === 'SPAN' && content.includes('Uploaded'),
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('en')).toBeInTheDocument()
+    expect(screen.getByText('es')).toBeInTheDocument()
+    expect(screen.queryByText('/f/abc123…')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Route:/)).not.toBeInTheDocument()
+    expect(screen.queryByText('2 languages')).not.toBeInTheDocument()
+  })
+
+  it('keeps Open form, Export, and Delete as the only row actions', async () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary] }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const open = await screen.findByRole('link', { name: 'Open form' })
+    expect(open).toHaveAttribute('href', '/f/abc123')
+
+    const actions = open.closest('.form-actions')
+    expect(actions).not.toBeNull()
+    expect(within(actions as HTMLElement).getByRole('link').textContent).toBe(
+      'Open form',
+    )
+    expect(
+      within(actions as HTMLElement)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Export', 'Delete'])
+  })
+
+  it('labels the rename pen with a localized accessible name and title', async () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="eu">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary] }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const name = await screen.findByRole('link', { name: 'Employment contract' })
+    const pen = screen.getByRole('button', { name: 'Izena aldatu' })
+    expect(pen).toHaveAttribute('title', 'Izena aldatu')
+    expect(pen.parentElement).toBe(name.parentElement)
+    expect(name.nextElementSibling).toBe(pen)
+  })
+
+  it('opens the inline rename editor from the pen and focuses the input', async () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary] }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Rename' }),
+    )
+
+    const input = screen.getByLabelText('Form name')
+    expect(input).toHaveValue('Employment contract')
+    expect(input).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Employment contract' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('saves a renamed form through the library rename path', async () => {
+    let current = summary
+    const rename = vi.fn<FormsApi['rename']>(async (_route, name) => {
+      current = { ...summary, displayName: name }
+    })
+
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [current], rename }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Rename' }),
+    )
+    const input = screen.getByLabelText('Form name')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Renamed contract')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(rename).toHaveBeenCalledWith('abc123', 'Renamed contract')
+    expect(
+      await screen.findByRole('link', { name: 'Renamed contract' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Form name')).not.toBeInTheDocument()
+  })
+
+  it('restores the original name when renaming is cancelled', async () => {
+    const rename = vi.fn<FormsApi['rename']>(async () => undefined)
+
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ list: async () => [summary], rename }),
+              preview: fakePreview,
+            }}
+          >
+            <LibraryPage />
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Rename' }),
+    )
+    const input = screen.getByLabelText('Form name')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Discarded name')
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(rename).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('link', { name: 'Employment contract' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Form name')).not.toBeInTheDocument()
   })
 
   it('opens the bilingual new-form panel', async () => {
@@ -1051,7 +1233,7 @@ describe('App shell', () => {
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
   })
 
-  it('localizes the library, counts, and single-language badge', async () => {
+  it('localizes the library and single-language badge', async () => {
     render(
       <MemoryRouter>
         <I18nProvider initialLocale="es">
@@ -1068,7 +1250,6 @@ describe('App shell', () => {
     )
 
     expect(await screen.findByText('Tus formularios')).toBeInTheDocument()
-    expect(screen.getByText('2 idiomas')).toBeInTheDocument()
     expect(screen.getByText('Idioma único')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /nuevo formulario/i }),
