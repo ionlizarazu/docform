@@ -55,6 +55,8 @@ Errors are reported as stable codes with structured details and localized from t
 
 The in-app guide is available at `/docs` from the **Docs** menu and follows the interface language. Its Markdown sources are in `docs/guides/` for English, Spanish, and Basque.
 
+![The in-app guide](docs/screenshots/docs.png)
+
 ![The generated form](docs/screenshots/form.png)
 
 ## Run

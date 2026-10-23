@@ -212,7 +212,11 @@ export default function FormPage() {
       <div className="page-heading">
         <div>
           <h1>{form.displayName}</h1>
-          <div className="form-badges">
+          <div
+            className="form-badges"
+            role="group"
+            aria-label={messages.documentLanguages}
+          >
             {form.locales.map((documentLocale) => (
               <span className="badge" key={documentLocale}>
                 {documentLocale === 'und'

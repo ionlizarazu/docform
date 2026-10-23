@@ -143,7 +143,12 @@ export default function PreviewPage() {
   }
 
   if (form === undefined) {
-    return <p className="muted">{messages.loading}</p>
+    return (
+      <section className="page">
+        <BackLink to={`/f/${route}`} label={messages.backToForm} />
+        <p className="muted">{messages.loading}</p>
+      </section>
+    )
   }
 
   if (form === null) {
