@@ -60,10 +60,12 @@ Aurrebista gutxi gorabeherakoa da. Diseinua egiaztatzeko balio du, baina deskarg
 
 Bi hizkuntza-hautaketa desberdin daude:
 
-- Goiburuko **Interfazaren hizkuntzak** botoiak, mezuak, datak eta gida hau aldatzen ditu. Oraingo aukerak Euskara, Español eta English dira.
+- Goiburuko **Interfazaren hizkuntzak** botoiak, mezuak, datak eta gida hau aldatzen ditu. `eu | es | en` gisa erakusten da, hautatutako kodea lodiz; pantaila-irakurleek aukera bakoitza kodea eta izenarekin iragartzen dute, adibidez `eu — Euskara`.
 - **Dokumentuaren hizkuntza** txantiloi batekoa da. Hizkuntza-aldaera horren etiketak, aukerak eta dokumentu betea kontrolatzen ditu.
 
 Interfazaren hizkuntza aldatzeak ez ditu formularioaren dokumentu-hizkuntzak edo deskargatzen dituzun dokumentuak aldatzen.
+
+Goiburuko menuak **Formularioak** dauka, formulario-liburutegira itzultzeko, eta **Gida**, gida hau irekitzeko.
 
 ## 5. Formularioa babeskopiatu edo mugitu
 

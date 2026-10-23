@@ -77,6 +77,7 @@ function FormRow({
             <input
               id={`rename-${form.route}`}
               value={name}
+              autoFocus
               onChange={(event) => setName(event.target.value)}
             />
             <button type="button" onClick={save} disabled={busy}>
@@ -94,14 +95,33 @@ function FormRow({
             </button>
           </div>
         ) : (
-          <Link className="form-name" to={`/f/${form.route}`}>
-            {form.displayName}
-          </Link>
+          <div className="form-name-line">
+            <Link className="form-name" to={`/f/${form.route}`}>
+              {form.displayName}
+            </Link>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={messages.rename}
+              title={messages.rename}
+              onClick={() => setEditing(true)}
+            >
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
+              </svg>
+            </button>
+          </div>
         )}
         <div className="form-meta">
-          <span>
-            {messages.routeLabel}: <code>/f/{form.route.slice(0, 12)}…</code>
-          </span>
           <span>
             {messages.uploadedLabel}: {formatDate(form.createdAt)}
           </span>
@@ -110,20 +130,12 @@ function FormRow({
               {locale === 'und' ? messages.singleLanguage : locale}
             </span>
           ))}
-          {form.variantCount > 1 && (
-            <span className="muted">
-              {messages.languageCount(form.variantCount)}
-            </span>
-          )}
         </div>
       </div>
       <div className="form-actions">
         <Link className="button-link" to={`/f/${form.route}`}>
           {messages.openForm}
         </Link>
-        <button type="button" className="secondary" onClick={() => setEditing(true)}>
-          {messages.rename}
-        </button>
         <button
           type="button"
           className="secondary"
@@ -212,45 +224,48 @@ export default function LibraryPage() {
     <section className="page">
       <div className="page-heading">
         <div>
-          <h1>{messages.libraryTitle}</h1>
+          <h1 id="library-title">{messages.libraryTitle}</h1>
           <p className="muted">{messages.librarySubtitle}</p>
-        </div>
-        <div className="upload-actions">
-          <button
-            type="button"
-            onClick={() => {
-              setErrors([])
-              setShowNewForm((current) => !current)
-            }}
-            disabled={busy}
-          >
-            {messages.upload}
-          </button>
-          <input
-            ref={importRef}
-            className="visually-hidden"
-            type="file"
-            accept=".json,.formpack.json,application/json"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              if (file) {
-                void handleImport(file)
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => importRef.current?.click()}
-            disabled={busy}
-          >
-            {messages.importPackage}
-          </button>
         </div>
       </div>
 
-      <p className="hint">{messages.uploadHint}</p>
+      <div
+        className="library-toolbar"
+        role="group"
+        aria-labelledby="library-title"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setErrors([])
+            setShowNewForm((current) => !current)
+          }}
+          disabled={busy}
+        >
+          {messages.upload}
+        </button>
+        <input
+          ref={importRef}
+          className="visually-hidden"
+          type="file"
+          accept=".json,.formpack.json,application/json"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) {
+              void handleImport(file)
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => importRef.current?.click()}
+          disabled={busy}
+        >
+          {messages.importPackage}
+        </button>
+      </div>
 
       {showNewForm && (
         <NewFormPanel

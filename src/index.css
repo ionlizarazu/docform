@@ -2,20 +2,24 @@
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  color: #17202a;
-  background: #f3f5f7;
+  color: #1e2329;
+  background: #f5f2ec;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #17202a;
-  --muted: #617080;
-  --line: #d8dee5;
+  --ink: #1e2329;
+  --muted: #66707a;
+  --line: #ddd9d1;
   --paper: #ffffff;
-  --accent: #0f6d5c;
-  --accent-strong: #0a5547;
-  --accent-soft: #e1f0ec;
-  --danger: #a83232;
-  --danger-soft: #fbeceb;
-  --warning-soft: #fff6e0;
+  --canvas: #f5f2ec;
+  --accent: #3b4f8a;
+  --accent-strong: #2d3d6b;
+  --accent-soft: #e7eaf5;
+  --danger: #a33a32;
+  --danger-soft: #f9e9e7;
+  --danger-line: #e8c9c5;
+  --warning-soft: #fbf3df;
+  --content-width: 72rem;
+  --content-gutter: clamp(1rem, 4vw, 3rem);
 }
 
 * {
@@ -27,8 +31,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(15, 109, 92, 0.08), transparent 30rem),
-    #f3f5f7;
+    radial-gradient(circle at top left, rgba(59, 79, 138, 0.08), transparent 30rem),
+    var(--canvas);
 }
 
 a {
@@ -89,7 +93,7 @@ button.secondary:hover:not(:disabled),
 button.danger {
   background: transparent;
   color: var(--danger);
-  border-color: #e8c7c4;
+  border-color: var(--danger-line);
 }
 
 button.danger:hover:not(:disabled) {
@@ -103,11 +107,21 @@ button.danger:hover:not(:disabled) {
   flex-direction: column;
 }
 
+.content-column {
+  width: min(var(--content-width), 100%);
+  margin-inline: auto;
+  padding-inline: var(--content-gutter);
+}
+
 .app-header {
-  padding: 1.5rem clamp(1rem, 4vw, 3rem) 1rem;
+  padding-block: 1.1rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.app-header-content {
   display: flex;
-  align-items: baseline;
-  gap: 1rem;
+  align-items: center;
+  gap: 1.25rem;
   flex-wrap: wrap;
 }
 
@@ -118,49 +132,73 @@ button.danger:hover:not(:disabled) {
   color: var(--ink);
 }
 
-.tagline {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.92rem;
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
 }
 
-.docs-link {
-  margin-left: auto;
-  align-self: center;
-  font-size: 0.86rem;
-  font-weight: 650;
+.app-nav a {
   color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
-.docs-link:hover {
+.app-nav a:hover {
   color: var(--accent);
   text-decoration: none;
 }
 
-.interface-language {
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 650;
-  white-space: nowrap;
+.app-nav a.active {
+  color: var(--accent-strong);
+  font-weight: 750;
 }
 
-.interface-language select {
-  width: auto;
-  min-width: 8.5rem;
-  padding: 0.35rem 0.5rem;
+.interface-language-switcher {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.interface-language-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  color: var(--muted);
   font-size: 0.86rem;
-  background: var(--paper);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.interface-language-button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-strong);
+}
+
+.interface-language-button[aria-pressed="true"] {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.interface-language-button + .interface-language-button {
+  box-shadow: inset 1px 0 0 var(--line);
+}
+
+button:focus-visible,
+.button-link:focus-visible,
+.brand:focus-visible,
+.app-nav a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .app-main {
-  width: min(72rem, 100%);
-  margin: 0 auto;
-  padding: 0 clamp(1rem, 4vw, 3rem) 4rem;
   flex: 1;
+  padding-bottom: 4rem;
 }
 
 .page {
@@ -212,12 +250,66 @@ p {
   color: var(--muted);
 }
 
+.back-link-row {
+  display: flex;
+  align-items: center;
+  padding-block: 1rem 0.35rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.back-link:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
+.back-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 0.25rem;
+}
+
+.back-link-arrow {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.back-link-row + .page-heading {
+  padding-top: 0;
+}
+
+.back-link-row + h1 {
+  margin-top: 0;
+}
+
+.form-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+}
+
 .upload-actions,
 .form-actions {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.library-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .visually-hidden {
@@ -250,22 +342,54 @@ p {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 0.9rem;
-  padding: 1rem 1.1rem;
-  box-shadow: 0 1px 2px rgba(23, 32, 42, 0.04);
+  padding: 0.85rem 1rem;
+  box-shadow: 0 1px 2px rgba(30, 35, 41, 0.04);
 }
 
 .form-row-main {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.3rem;
   min-width: 15rem;
   flex: 1;
+}
+
+.form-name-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .form-name {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--accent);
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--line);
+}
+
+.icon-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .form-meta {
@@ -279,6 +403,7 @@ p {
 
 .form-actions {
   align-self: center;
+  flex: none;
 }
 
 .badge {
@@ -297,9 +422,9 @@ p {
 .notice {
   border-radius: 0.8rem;
   padding: 0.9rem 1rem;
-  border: 1px solid #e8c7c4;
+  border: 1px solid var(--danger-line);
   background: var(--danger-soft);
-  color: #701f1f;
+  color: var(--danger);
 }
 
 .errors ul {
@@ -339,7 +464,7 @@ p {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  box-shadow: 0 10px 30px rgba(23, 32, 42, 0.05);
+  box-shadow: 0 10px 30px rgba(30, 35, 41, 0.05);
 }
 
 .new-form-heading h2 {
@@ -363,7 +488,7 @@ p {
   padding: 0.85rem;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: #fbfcfd;
+  background: var(--canvas);
 }
 
 .variant-draft-file,
@@ -463,7 +588,7 @@ p {
   display: flex;
   flex-direction: column;
   gap: 1.15rem;
-  box-shadow: 0 10px 30px rgba(23, 32, 42, 0.05);
+  box-shadow: 0 10px 30px rgba(30, 35, 41, 0.05);
 }
 
 .field {
@@ -492,7 +617,7 @@ select {
 input[type="text"]:focus,
 textarea:focus,
 select:focus {
-  outline: 2px solid rgba(15, 109, 92, 0.28);
+  outline: 2px solid rgba(59, 79, 138, 0.32);
   border-color: var(--accent);
 }
 
@@ -540,12 +665,11 @@ textarea {
 }
 
 .docs-content {
-  width: min(52rem, 100%);
   padding: clamp(1.1rem, 3vw, 2rem);
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 1rem;
-  box-shadow: 0 10px 30px rgba(23, 32, 42, 0.05);
+  box-shadow: 0 10px 30px rgba(30, 35, 41, 0.05);
   overflow-wrap: anywhere;
 }
 
@@ -592,7 +716,7 @@ textarea {
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85em;
-  background: #eef1f4;
+  background: var(--canvas);
   padding: 0.1rem 0.3rem;
   border-radius: 0.3rem;
 }
@@ -613,6 +737,10 @@ code {
     flex-direction: column;
   }
 
+  .form-row-main {
+    min-width: 0;
+  }
+
   .form-actions,
   .upload-actions {
     width: 100%;
@@ -623,17 +751,11 @@ code {
     flex: 1;
   }
 
-  .docs-link {
-    margin-left: 0;
+  .library-toolbar > button {
+    flex: 1 1 10rem;
   }
 
-  .interface-language {
+  .interface-language-switcher {
     margin-left: 0;
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .interface-language select {
-    flex: 1;
   }
 }

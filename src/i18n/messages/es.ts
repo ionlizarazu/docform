@@ -21,7 +21,7 @@ function params(error: LocalizedError): TemplateErrorParams {
 
 export const es: Messages = {
   appName: 'Docform',
-  appTagline: 'Convierte documentos en formularios sin salir del navegador.',
+  formsNav: 'Formularios',
   docs: 'Guía',
   interfaceLanguage: 'Idioma de la interfaz',
   libraryTitle: 'Tus formularios',
@@ -29,8 +29,6 @@ export const es: Messages = {
   libraryEmpty:
     'Aún no hay formularios. Sube una plantilla DOCX u ODT para empezar.',
   upload: 'Nuevo formulario',
-  uploadHint:
-    'Añade una plantilla DOCX u ODT por idioma, de hasta 25 MB cada una. Declara los campos con {{Label}}.',
   importPackage: 'Importar paquete',
   openForm: 'Abrir formulario',
   rename: 'Renombrar',
@@ -39,7 +37,6 @@ export const es: Messages = {
   save: 'Guardar',
   cancel: 'Cancelar',
   formNameLabel: 'Nombre del formulario',
-  routeLabel: 'Ruta',
   uploadedLabel: 'Subido',
   deleteConfirm:
     '¿Eliminar este formulario? Se eliminarán sus plantillas y su ruta.',
@@ -57,7 +54,6 @@ export const es: Messages = {
     'La aplicación ha encontrado un error inesperado. Recarga la página o vuelve a la biblioteca.',
   backToLibrary: 'Volver a los formularios',
   singleLanguage: 'Idioma único',
-  languageCount: (count) => `${count} ${count === 1 ? 'idioma' : 'idiomas'}`,
   newFormTitle: 'Nuevo formulario',
   newFormHint:
     'Cada plantilla de idioma debe declarar las mismas etiquetas y tipos de campo. Las opciones de selección se emparejan por posición, así que mantén el mismo orden.',

@@ -17,14 +17,13 @@ export type ErrorMessage = (error: LocalizedError) => string
 
 export interface Messages {
   appName: string
-  appTagline: string
+  formsNav: string
   docs: string
   interfaceLanguage: string
   libraryTitle: string
   librarySubtitle: string
   libraryEmpty: string
   upload: string
-  uploadHint: string
   importPackage: string
   openForm: string
   rename: string
@@ -33,7 +32,6 @@ export interface Messages {
   save: string
   cancel: string
   formNameLabel: string
-  routeLabel: string
   uploadedLabel: string
   deleteConfirm: string
   errorsTitle: string
@@ -48,7 +46,6 @@ export interface Messages {
   errorBody: string
   backToLibrary: string
   singleLanguage: string
-  languageCount: (count: number) => string
   newFormTitle: string
   newFormHint: string
   createForm: string

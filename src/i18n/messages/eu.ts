@@ -21,8 +21,7 @@ function params(error: LocalizedError): TemplateErrorParams {
 
 export const eu: Messages = {
   appName: 'Docform',
-  appTagline:
-    'Bihurtu dokumentuak formulario nabigatzailetik irten gabe.',
+  formsNav: 'Formularioak',
   docs: 'Gida',
   interfaceLanguage: 'Interfazaren hizkuntza',
   libraryTitle: 'Zure formularioak',
@@ -31,8 +30,6 @@ export const eu: Messages = {
   libraryEmpty:
     'Oraindik ez dago formulariorik. Igo DOCX edo ODT txantiloi bat hasteko.',
   upload: 'Formulario berria',
-  uploadHint:
-    'Gehitu DOCX edo ODT txantiloi bat hizkuntza bakoitzeko, gehienez 25 MB bakoitza. Adierazi eremuak {{Label}}-rekin.',
   importPackage: 'Inportatu paketea',
   openForm: 'Ireki formularioa',
   rename: 'Izena aldatu',
@@ -41,7 +38,6 @@ export const eu: Messages = {
   save: 'Gorde',
   cancel: 'Ezeztatu',
   formNameLabel: 'Formularioaren izena',
-  routeLabel: 'Ibilbidea',
   uploadedLabel: 'Igoera',
   deleteConfirm:
     'Formulario hau ezabatu? Bere txantiloiak eta ibilbidea kenduko dira.',
@@ -59,7 +55,6 @@ export const eu: Messages = {
     'Aplikazioak ustekabeko errore bat aurkitu du. Freskatu orria edo itzuli liburutegira.',
   backToLibrary: 'Itzuli formularioetara',
   singleLanguage: 'Hizkuntza bakarra',
-  languageCount: (count) => `${count} hizkuntza`,
   newFormTitle: 'Formulario berria',
   newFormHint:
     'Hizkuntza bakoitzeko txantiloiak etiketa eta eremu-mota berberak adierazi behar ditu. Aukera-eremuak posizioaren arabera parekatzen dira, beraz, mantendu ordena bera.',

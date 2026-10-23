@@ -27,6 +27,11 @@ const STYLE_NS = 'urn:oasis:names:tc:opendocument:xmlns:style:1.0'
 const FO_NS = 'urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0'
 const MANIFEST_NS = 'urn:oasis:names:tc:opendocument:xmlns:manifest:1.0'
 const META_NS = 'urn:oasis:names:tc:opendocument:xmlns:meta:1.0'
+const languageNames = {
+  eu: 'eu — Euskara',
+  es: 'es — Español',
+  en: 'en — English',
+}
 
 function escapeXml(value) {
   return value
@@ -239,50 +244,255 @@ async function main() {
     consoleErrors.push(`pageerror: ${error.message}`)
   })
 
+  async function capture(name, fullPage = true) {
+    await page.mouse.move(1, 1)
+    await page.waitForTimeout(250)
+    await page.screenshot({ path: path.join(outDir, name), fullPage })
+  }
+
+  const edgeTolerance = 1.5
+  let contentColumn = null
+
+  async function boxOfLocator(locator, description) {
+    const box = await locator.first().boundingBox()
+    if (box === null) {
+      throw new Error(`The ${description} is missing its bounding box`)
+    }
+    return box
+  }
+
+  async function assertStartsAtContentColumn(locator, description) {
+    if (contentColumn === null) {
+      throw new Error('The content column has not been measured yet')
+    }
+    const box = await boxOfLocator(locator, description)
+    if (Math.abs(box.x - contentColumn.left) > edgeTolerance) {
+      throw new Error(
+        `The ${description} starts at ${box.x}px but the content column starts at ${contentColumn.left}px`,
+      )
+    }
+  }
+
+  async function assertAbove(first, second, description) {
+    const firstBox = await boxOfLocator(first, description)
+    const secondBox = await boxOfLocator(second, description)
+    if (firstBox.y + firstBox.height > secondBox.y + edgeTolerance) {
+      throw new Error(
+        `The ${description} ends at ${firstBox.y + firstBox.height}px but the element below starts at ${secondBox.y}px`,
+      )
+    }
+  }
+
+  async function assertNoHorizontalOverflow(label) {
+    const overflow = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }))
+    if (overflow.scrollWidth > overflow.clientWidth) {
+      throw new Error(
+        `The ${label} overflows horizontally (${overflow.scrollWidth} > ${overflow.clientWidth})`,
+      )
+    }
+  }
+
+  async function assertWithinViewport(locator, description) {
+    const box = await boxOfLocator(locator, description)
+    const width = await page.evaluate(() => document.documentElement.clientWidth)
+    if (box.x < -edgeTolerance || box.x + box.width > width + edgeTolerance) {
+      throw new Error(
+        `The ${description} spans ${box.x}..${box.x + box.width}px outside the ${width}px viewport`,
+      )
+    }
+  }
+
+  async function captureContentColumn() {
+    const formCard = await boxOfLocator(page.locator('form'), 'form card')
+    contentColumn = {
+      left: formCard.x,
+      right: formCard.x + formCard.width,
+    }
+
+    const brand = await boxOfLocator(
+      page.getByRole('link', { name: 'Docform' }),
+      'header brand',
+    )
+    if (Math.abs(brand.x - contentColumn.left) > edgeTolerance) {
+      throw new Error(
+        `The header brand starts at ${brand.x}px but the content column starts at ${contentColumn.left}px`,
+      )
+    }
+
+    const languageSwitcher = await boxOfLocator(
+      page.getByRole('group', { name: 'Interface language' }),
+      'interface language switcher',
+    )
+    const languageRight = languageSwitcher.x + languageSwitcher.width
+    if (Math.abs(languageRight - contentColumn.right) > edgeTolerance) {
+      throw new Error(
+        `The interface language switcher ends at ${languageRight}px but the content column ends at ${contentColumn.right}px`,
+      )
+    }
+  }
+
+  async function assertLocatorUsesContentColumn(locator, description) {
+    if (contentColumn === null) {
+      throw new Error('The content column has not been measured yet')
+    }
+    const box = await boxOfLocator(locator, description)
+    if (
+      Math.abs(box.x - contentColumn.left) > edgeTolerance ||
+      Math.abs(box.x + box.width - contentColumn.right) > edgeTolerance
+    ) {
+      throw new Error(
+        `The ${description} spans ${box.x}..${box.x + box.width}px but the content column spans ${contentColumn.left}..${contentColumn.right}px`,
+      )
+    }
+  }
+
   try {
     await waitForServer(baseUrl)
     await page.goto(baseUrl)
-    await page.screenshot({ path: path.join(outDir, '01-library.png'), fullPage: true })
+    await page.getByRole('heading', { name: 'Your forms' }).waitFor()
+    await capture('01-library.png')
 
-    const interfaceLanguage = page.getByRole('combobox')
-    await interfaceLanguage.selectOption('eu')
-    await page.getByRole('heading', { name: 'Zure formularioak' }).waitFor()
-    if ((await page.locator('html').getAttribute('lang')) !== 'eu') {
-      throw new Error('The document lang did not update to Basque')
+    const removedUploadHint =
+      'Add one DOCX or ODT template per language, up to 25 MB each. Declare fields with {{Label}}.'
+    if ((await page.getByText(removedUploadHint).count()) !== 0) {
+      throw new Error('The removed library upload hint is still rendered')
     }
+
+    const libraryToolbar = page.getByRole('group', { name: 'Your forms' })
+    await libraryToolbar.waitFor()
+    const toolbarButtons = await libraryToolbar
+      .getByRole('button')
+      .allTextContents()
+    if (
+      toolbarButtons.map((label) => label.trim()).join('|') !==
+      'New form|Import package'
+    ) {
+      throw new Error(
+        `The library toolbar buttons are ${JSON.stringify(toolbarButtons)}, expected New form then Import package`,
+      )
+    }
+    const libraryHeading = page.getByRole('heading', {
+      level: 1,
+      name: 'Your forms',
+    })
+    if (
+      (await libraryHeading.locator('xpath=..').getByRole('button').count()) !==
+      0
+    ) {
+      throw new Error('The library heading still contains action buttons')
+    }
+    const libraryEmptyState = page.getByText(
+      'No forms yet. Upload a DOCX or ODT template to begin.',
+    )
+    await libraryEmptyState.waitFor()
+    await assertAbove(
+      libraryToolbar,
+      libraryEmptyState,
+      'library toolbar above the empty state',
+    )
+
+    if ((await page.getByRole('combobox').count()) !== 0) {
+      throw new Error('The old header language select is still rendered')
+    }
+    const headerNav = page.getByRole('navigation')
+    if ((await headerNav.getByRole('link', { name: 'Forms' }).count()) === 0) {
+      throw new Error('The header is missing the Forms menu item')
+    }
+    if ((await headerNav.getByRole('link', { name: 'Docs' }).count()) === 0) {
+      throw new Error('The header is missing the Docs menu item')
+    }
+    if (
+      (await page.getByText('Turn documents into forms without leaving your browser.').count()) !==
+      0
+    ) {
+      throw new Error('The removed tagline is still rendered')
+    }
+
+    async function selectInterfaceLanguage(code, headingName) {
+      const accessibleName = languageNames[code]
+      const button = page.getByRole('button', { name: accessibleName })
+      await button.click()
+      await page.getByRole('heading', { name: headingName }).waitFor()
+
+      if (!accessibleName.includes(code)) {
+        throw new Error(`The ${code} language button does not expose its visible code`)
+      }
+      const label = await button.getAttribute('aria-label')
+      if (label !== accessibleName) {
+        throw new Error(
+          `The ${code} language button accessible name is ${label}, expected ${accessibleName}`,
+        )
+      }
+
+      const pressed = await button.getAttribute('aria-pressed')
+      if (pressed !== 'true') {
+        throw new Error(
+          `The ${code} language button is not marked as selected (aria-pressed=${pressed})`,
+        )
+      }
+      for (const [otherCode, otherName] of Object.entries(languageNames)) {
+        if (otherCode === code) {
+          continue
+        }
+        const otherPressed = await page
+          .getByRole('button', { name: otherName })
+          .getAttribute('aria-pressed')
+        if (otherPressed !== 'false') {
+          throw new Error(
+            `The ${otherCode} language button remained selected after choosing ${code}`,
+          )
+        }
+      }
+      if ((await page.locator('html').getAttribute('lang')) !== code) {
+        throw new Error(`The document lang did not update to ${code}`)
+      }
+    }
+
+    await selectInterfaceLanguage('eu', 'Zure formularioak')
     if ((await page.getByRole('button', { name: 'Formulario berria' }).count()) === 0) {
       throw new Error('The Basque library chrome did not render')
     }
-    await page.screenshot({
-      path: path.join(outDir, '01-library-eu.png'),
-      fullPage: true,
-    })
+    await capture('01-library-eu.png')
 
-    await interfaceLanguage.selectOption('es')
-    await page.getByRole('heading', { name: 'Tus formularios' }).waitFor()
-    if ((await page.locator('html').getAttribute('lang')) !== 'es') {
-      throw new Error('The document lang did not update to Spanish')
-    }
+    await selectInterfaceLanguage('es', 'Tus formularios')
     if ((await page.getByRole('button', { name: 'Nuevo formulario' }).count()) === 0) {
       throw new Error('The Spanish library chrome did not render')
     }
-    await page.screenshot({
-      path: path.join(outDir, '01-library-es.png'),
-      fullPage: true,
-    })
+    await capture('01-library-es.png')
 
-    await interfaceLanguage.selectOption('en')
-    await page.getByRole('heading', { name: 'Your forms' }).waitFor()
-    if ((await page.locator('html').getAttribute('lang')) !== 'en') {
-      throw new Error('The document lang did not return to English')
-    }
+    await selectInterfaceLanguage('en', 'Your forms')
 
     await page.getByRole('button', { name: 'New form' }).click()
     await page.getByLabel('Template 1').setInputFiles(docxPath)
     await page.getByLabel('Template 2').setInputFiles(odtPath)
     await page.getByRole('button', { name: 'Create form' }).click()
     await page.getByText('Detected fields').waitFor()
-    await page.screenshot({ path: path.join(outDir, '02-detected.png'), fullPage: true })
+    await capture('02-detected.png')
+
+    const detectedHeading = page.getByRole('heading', {
+      level: 1,
+      name: 'Detected fields',
+    })
+    const detectedBack = page.getByRole('link', { name: 'Back to forms' })
+    await assertAbove(detectedBack, detectedHeading, 'detected-fields back link')
+    const detectedBackBox = await boxOfLocator(detectedBack, 'detected-fields back link')
+    const detectedHeadingBox = await boxOfLocator(
+      detectedHeading,
+      'detected-fields heading',
+    )
+    if (Math.abs(detectedBackBox.x - detectedHeadingBox.x) > edgeTolerance) {
+      throw new Error(
+        `The detected-fields back link starts at ${detectedBackBox.x}px but the heading starts at ${detectedHeadingBox.x}px`,
+      )
+    }
+    if (
+      (await page.getByRole('link', { name: 'Open form' }).count()) === 0
+    ) {
+      throw new Error('The detected-fields page lost its Open form action')
+    }
 
     await page.getByRole('link', { name: 'Open form' }).click()
     await page.getByLabel('Name').waitFor()
@@ -305,8 +515,34 @@ async function main() {
     await page.getByLabel('Country').selectOption('France')
     await page.getByLabel('Notes').fill('First line\nSecond line')
     await page.getByLabel('Reference').fill('REF-42')
-    await page.screenshot({ path: path.join(outDir, '03-form.png'), fullPage: true })
+    await capture('03-form.png')
+    await captureContentColumn()
 
+    const formHeading = page.getByRole('heading', {
+      level: 1,
+      name: 'sample-contract',
+    })
+    await assertStartsAtContentColumn(formHeading, 'form page heading')
+    const formBack = page.getByRole('link', { name: 'Back to forms' })
+    await assertAbove(formBack, formHeading, 'form back link')
+    await assertStartsAtContentColumn(formBack, 'form back link')
+
+    const formBadges = page.getByRole('group', { name: 'Document languages' })
+    await assertAbove(formHeading, formBadges, 'form title above the badges')
+    await assertAbove(
+      formBadges,
+      page.getByText('All fields are optional.'),
+      'form badges above the optional-fields note',
+    )
+    await assertStartsAtContentColumn(formBadges, 'form language badges')
+    const badgeTexts = (await formBadges.locator('span').allTextContents()).map(
+      (text) => text.trim().toLowerCase(),
+    )
+    if (badgeTexts.join('|') !== 'en|es') {
+      throw new Error(
+        `The form badges are ${JSON.stringify(badgeTexts)}, expected en then es`,
+      )
+    }
     const downloadPromise = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Download filled documents' }).click()
     const download = await downloadPromise
@@ -346,9 +582,35 @@ async function main() {
     }
 
     await page.getByRole('button', { name: 'Preview' }).click()
-    await page.locator('iframe.preview-frame').waitFor()
+    await page.locator('iframe').waitFor()
     await page.waitForTimeout(2000)
-    await page.screenshot({ path: path.join(outDir, '04-docx-preview.png'), fullPage: true })
+    await capture('04-docx-preview.png')
+    await assertLocatorUsesContentColumn(page.locator('iframe'), 'preview frame')
+
+    const previewHeading = page.getByRole('heading', {
+      level: 1,
+      name: 'Approximate preview',
+    })
+    const previewBack = page.getByRole('link', { name: 'Back to form' })
+    await assertAbove(previewBack, previewHeading, 'preview back link')
+    await assertStartsAtContentColumn(previewBack, 'preview back link')
+    const previewTabs = page.getByRole('tablist', {
+      name: 'Document languages',
+    })
+    if (!(await previewTabs.isVisible())) {
+      throw new Error('The preview document-language tabs are missing')
+    }
+    if (!(await page.getByRole('button', { name: 'Print' }).isVisible())) {
+      throw new Error('The preview lost its Print action')
+    }
+    if (
+      !(await page
+        .getByRole('button', { name: 'Download filled documents' })
+        .isVisible())
+    ) {
+      throw new Error('The preview lost its Download action')
+    }
+
     const docxNotice = await page.getByText('The preview could not be rendered').count()
     if (docxNotice > 0) {
       throw new Error('DOCX preview fell back to unavailable')
@@ -356,17 +618,86 @@ async function main() {
 
     await page.getByRole('tab', { name: 'es' }).click()
     await page.waitForTimeout(5000)
-    await page.locator('iframe.preview-frame').waitFor({ timeout: 45000 })
-    await page.screenshot({ path: path.join(outDir, '05-odt-preview.png'), fullPage: true })
+    await page.locator('iframe').waitFor({ timeout: 45000 })
+    await capture('05-odt-preview.png')
     const odtNotice = await page.getByText('The preview could not be rendered').count()
     const odtReason = odtNotice > 0 ? await page.locator('.notice').innerText() : ''
 
     await page.goto(baseUrl)
     await page.getByText('sample-contract').waitFor()
-    await page.screenshot({
-      path: path.join(outDir, '06-library-populated.png'),
-      fullPage: true,
+    await capture('06-library-populated.png')
+    await assertStartsAtContentColumn(
+      page.getByRole('heading', { level: 1, name: 'Your forms' }),
+      'library page heading',
+    )
+    await assertLocatorUsesContentColumn(page.getByRole('list'), 'library forms list')
+    await assertLocatorUsesContentColumn(
+      page.getByRole('listitem').first(),
+      'library form row',
+    )
+    const populatedToolbar = page.getByRole('group', { name: 'Your forms' })
+    await assertAbove(
+      populatedToolbar,
+      page.getByRole('list'),
+      'library toolbar above the forms list',
+    )
+    if ((await page.getByText(removedUploadHint).count()) !== 0) {
+      throw new Error('The removed library upload hint is still rendered')
+    }
+
+    await page.setViewportSize({ width: 390, height: 900 })
+    if (!(await page.getByRole('navigation').isVisible())) {
+      throw new Error('The header menu is not visible on a narrow viewport')
+    }
+    if (
+      !(await page
+        .getByRole('group', { name: 'Interface language' })
+        .isVisible())
+    ) {
+      throw new Error(
+        'The interface-language group is not visible on a narrow viewport',
+      )
+    }
+    await assertNoHorizontalOverflow('narrow layout')
+    const narrowToolbar = page.getByRole('group', { name: 'Your forms' })
+    if (!(await narrowToolbar.isVisible())) {
+      throw new Error('The library toolbar is not visible on a narrow viewport')
+    }
+    const narrowToolbarButtons = await narrowToolbar.getByRole('button').all()
+    if (narrowToolbarButtons.length !== 2) {
+      throw new Error(
+        `The narrow library toolbar has ${narrowToolbarButtons.length} buttons, expected 2`,
+      )
+    }
+    for (const button of narrowToolbarButtons) {
+      await assertWithinViewport(button, 'narrow library toolbar button')
+    }
+    await assertAbove(
+      page.getByRole('link', { name: 'sample-contract' }),
+      page.getByRole('link', { name: 'Open form' }),
+      'form name above the row actions',
+    )
+    await capture('08-library-narrow.png')
+
+    await page.getByRole('link', { name: 'sample-contract' }).click()
+    await page.getByLabel('Name').waitFor()
+    const narrowFormBack = page.getByRole('link', { name: 'Back to forms' })
+    if (!(await narrowFormBack.isVisible())) {
+      throw new Error('The form back link is not visible on a narrow viewport')
+    }
+    const narrowFormBadges = page.getByRole('group', {
+      name: 'Document languages',
     })
+    if (!(await narrowFormBadges.isVisible())) {
+      throw new Error('The form language badges are not visible on a narrow viewport')
+    }
+    await assertWithinViewport(narrowFormBack, 'narrow form back link')
+    await assertWithinViewport(narrowFormBadges, 'narrow form badges')
+    await assertNoHorizontalOverflow('narrow form layout')
+    await narrowFormBack.click()
+    await page.getByRole('heading', { name: 'Your forms' }).waitFor()
+
+    await page.setViewportSize({ width: 1280, height: 900 })
 
     const docsUrl = new URL('docs', baseUrl).toString()
     expectedFallbackUrl = docsUrl
@@ -377,10 +708,22 @@ async function main() {
       )
     }
     await page.getByRole('heading', { name: 'Docform guide' }).waitFor()
-    await page.screenshot({
-      path: path.join(outDir, '07-docs.png'),
-      fullPage: true,
-    })
+    await capture('07-docs.png', false)
+    const docsBack = page.getByRole('link', { name: 'Back to forms' })
+    const docsArticle = page.getByRole('article')
+    await assertAbove(docsBack, docsArticle, 'docs back link above the article')
+    await assertStartsAtContentColumn(docsBack, 'docs back link')
+    await assertLocatorUsesContentColumn(docsArticle, 'docs article')
+    const docsBox = await boxOfLocator(docsArticle, 'docs article')
+    if (contentColumn === null) {
+      throw new Error('The content column has not been measured yet')
+    }
+    const contentWidth = contentColumn.right - contentColumn.left
+    if (Math.abs(docsBox.width - contentWidth) > edgeTolerance * 2) {
+      throw new Error(
+        `The docs article is ${docsBox.width}px wide but the form card is ${contentWidth}px wide`,
+      )
+    }
     expectedFallbackUrl = null
 
     if (pagesMode) {

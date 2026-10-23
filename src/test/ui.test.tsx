@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -16,6 +16,12 @@ import LibraryPage from '../pages/LibraryPage'
 import PreviewPage from '../pages/PreviewPage'
 import UnexpectedErrorPage from '../pages/UnexpectedErrorPage'
 import { previewStorageKey } from '../pages/previewStorage'
+
+const languageButtons = {
+  eu: 'eu — Euskara',
+  es: 'es — Español',
+  en: 'en — English',
+} as const
 
 const summary: FormSummary = {
   route: 'abc123',
@@ -131,6 +137,12 @@ function makeForms(overrides: Partial<FormsApi> = {}): FormsApi {
   return { ...base, ...overrides }
 }
 
+function expectBefore(first: HTMLElement, second: HTMLElement) {
+  expect(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+}
+
 function renderFormPage(
   forms: FormsApi,
   entry = '/f/abc123',
@@ -149,39 +161,304 @@ function renderFormPage(
   )
 }
 
+function renderLibrary(
+  forms: FormsApi = makeForms(),
+  locale: InterfaceLocale = 'en',
+) {
+  return render(
+    <MemoryRouter>
+      <I18nProvider initialLocale={locale}>
+        <ServicesProvider value={{ forms, preview: fakePreview }}>
+          <LibraryPage />
+        </ServicesProvider>
+      </I18nProvider>
+    </MemoryRouter>,
+  )
+}
+
 describe('LibraryPage', () => {
+  it.each([
+    [
+      'en',
+      'Add one DOCX or ODT template per language, up to 25 MB each. Declare fields with {{Label}}.',
+    ],
+    [
+      'es',
+      'Añade una plantilla DOCX u ODT por idioma, de hasta 25 MB cada una. Declara los campos con {{Label}}.',
+    ],
+    [
+      'eu',
+      'Gehitu DOCX edo ODT txantiloi bat hizkuntza bakoitzeko, gehienez 25 MB bakoitza. Adierazi eremuak {{Label}}-rekin.',
+    ],
+  ] as const)('does not show the removed upload hint in %s', (locale, hint) => {
+    renderLibrary(makeForms(), locale)
+
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByText(hint)).not.toBeInTheDocument()
+  })
+
   it('lists stored forms and offers upload and import', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }))
 
     expect(await screen.findByText('Employment contract')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /new form/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /import package/i })).toBeInTheDocument()
-    expect(screen.getByText('2 languages')).toBeInTheDocument()
   })
 
-  it('opens the bilingual new-form panel', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="en">
-          <ServicesProvider value={{ forms: makeForms(), preview: fakePreview }}>
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+  it('puts New form and Import package in a toolbar above the list, in that order', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }))
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Your forms' })
+    const toolbar = screen.getByRole('group', { name: 'Your forms' })
+    expect(within(toolbar).getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'New form',
+      'Import package',
+    ])
+
+    const titleBlock = heading.parentElement as HTMLElement
+    expect(within(titleBlock).queryByRole('button')).not.toBeInTheDocument()
+    expect(
+      within(titleBlock).getByText('Templates you upload stay in this browser.'),
+    ).toBeInTheDocument()
+
+    const list = await screen.findByRole('list')
+    expectBefore(heading, toolbar)
+    expectBefore(toolbar, list)
+  })
+
+  it('keeps the empty state below the toolbar', async () => {
+    renderLibrary()
+
+    const toolbar = screen.getByRole('group', { name: 'Your forms' })
+    const empty = await screen.findByText(
+      'No forms yet. Upload a DOCX or ODT template to begin.',
     )
+    expectBefore(toolbar, empty)
+  })
+
+  it('opens the New form panel below the toolbar and above the list', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'New form' }))
+
+    const toolbar = screen.getByRole('group', { name: 'Your forms' })
+    const panelHeading = screen.getByRole('heading', {
+      level: 2,
+      name: 'New form',
+    })
+    const list = screen
+      .getByRole('link', { name: 'Employment contract' })
+      .closest('ul') as HTMLElement
+    expectBefore(toolbar, panelHeading)
+    expectBefore(panelHeading, list)
+  })
+
+  it('keeps package import errors below the toolbar', async () => {
+    const { container } = renderLibrary(
+      makeForms({
+        importPackage: async () => ({
+          ok: false,
+          errors: [
+            {
+              code: 'invalid-package',
+              detail: 'route-mismatch',
+              message: 'raw diagnostic',
+            },
+          ],
+        }),
+      }),
+    )
+
+    const input = container.querySelector(
+      'input[type=file][accept*="json"]',
+    ) as HTMLInputElement
+    await userEvent.upload(
+      input,
+      new File(['{}'], 'bad.formpack.json', { type: 'application/json' }),
+    )
+
+    const alert = await screen.findByRole('alert')
+    expectBefore(screen.getByRole('group', { name: 'Your forms' }), alert)
+  })
+
+  it('shows only the form name, uploaded date, and language badges', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }))
+
+    expect(await screen.findByText('Employment contract')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        (content, element) =>
+          element?.tagName === 'SPAN' && content.includes('Uploaded'),
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('en')).toBeInTheDocument()
+    expect(screen.getByText('es')).toBeInTheDocument()
+    expect(screen.queryByText('/f/abc123…')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Route:/)).not.toBeInTheDocument()
+    expect(screen.queryByText('2 languages')).not.toBeInTheDocument()
+  })
+
+  it('keeps Open form, Export, and Delete as the only row actions', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }))
+
+    const open = await screen.findByRole('link', { name: 'Open form' })
+    expect(open).toHaveAttribute('href', '/f/abc123')
+
+    const actions = open.parentElement
+    expect(actions).not.toBeNull()
+    expect(within(actions as HTMLElement).getByRole('link').textContent).toBe(
+      'Open form',
+    )
+    expect(
+      within(actions as HTMLElement)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Export', 'Delete'])
+  })
+
+  it('labels the rename pen with a localized accessible name and title', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }), 'eu')
+
+    const name = await screen.findByRole('link', { name: 'Employment contract' })
+    const pen = screen.getByRole('button', { name: 'Izena aldatu' })
+    expect(pen).toHaveAttribute('title', 'Izena aldatu')
+    expect(pen.parentElement).toBe(name.parentElement)
+    expect(name.nextElementSibling).toBe(pen)
+  })
+
+  it('opens the inline rename editor from the pen and focuses the input', async () => {
+    renderLibrary(makeForms({ list: async () => [summary] }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Rename' }),
+    )
+
+    const input = screen.getByLabelText('Form name')
+    expect(input).toHaveValue('Employment contract')
+    expect(input).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Employment contract' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('saves a renamed form through the library rename path', async () => {
+    let current = summary
+    const rename = vi.fn<FormsApi['rename']>(async (_route, name) => {
+      current = { ...summary, displayName: name }
+    })
+
+    renderLibrary(makeForms({ list: async () => [current], rename }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Rename' }),
+    )
+    const input = screen.getByLabelText('Form name')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Renamed contract')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(rename).toHaveBeenCalledWith('abc123', 'Renamed contract')
+    expect(
+      await screen.findByRole('link', { name: 'Renamed contract' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Form name')).not.toBeInTheDocument()
+  })
+
+  it('restores the original name when renaming is cancelled', async () => {
+    const rename = vi.fn<FormsApi['rename']>(async () => undefined)
+
+    renderLibrary(makeForms({ list: async () => [summary], rename }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Rename' }),
+    )
+    const input = screen.getByLabelText('Form name')
+    await userEvent.clear(input)
+    await userEvent.type(input, 'Discarded name')
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(rename).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('link', { name: 'Employment contract' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Form name')).not.toBeInTheDocument()
+  })
+
+  it('opens the file picker from Import package and imports the chosen package', async () => {
+    const picker = vi
+      .spyOn(HTMLInputElement.prototype, 'click')
+      .mockImplementation(() => undefined)
+    const importPackage = vi.fn<FormsApi['importPackage']>(async () => ({
+      ok: true,
+      route: 'new123',
+      displayName: 'Imported contract',
+      definition: { route: 'new123', primaryLocale: 'en', variants: [] },
+      primaryLocale: 'en',
+      locales: ['en'],
+      existed: false,
+    }))
+    const { container } = renderLibrary(makeForms({ importPackage }))
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Import package' }),
+    )
+    expect(picker).toHaveBeenCalledTimes(1)
+
+    const input = container.querySelector(
+      'input[type=file][accept*="json"]',
+    ) as HTMLInputElement
+    const file = new File(['{}'], 'contract.formpack.json', {
+      type: 'application/json',
+    })
+    await userEvent.upload(input, file)
+
+    await waitFor(() => expect(importPackage).toHaveBeenCalledWith(file))
+  })
+
+  it('exports a form package from the row action', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined)
+    const download = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => undefined)
+    const exportPackage = vi.fn<FormsApi['exportPackage']>(async () => ({
+      blob: new Blob(['{}']),
+      filename: 'contract.formpack.json',
+    }))
+    renderLibrary(makeForms({ list: async () => [summary], exportPackage }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Export' }),
+    )
+
+    await waitFor(() => expect(exportPackage).toHaveBeenCalledWith('abc123'))
+    expect(download).toHaveBeenCalledTimes(1)
+  })
+
+  it('deletes a form after confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const remove = vi.fn<FormsApi['remove']>(async () => undefined)
+    const list = vi
+      .fn<FormsApi['list']>()
+      .mockResolvedValueOnce([summary])
+      .mockResolvedValueOnce([])
+    renderLibrary(makeForms({ list, remove }))
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Delete' }),
+    )
+
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('abc123'))
+    expect(
+      await screen.findByText(
+        'No forms yet. Upload a DOCX or ODT template to begin.',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the bilingual new-form panel', async () => {    renderLibrary()
 
     await userEvent.click(screen.getByRole('button', { name: /new form/i }))
     expect(screen.getByLabelText('Template 1')).toBeInTheDocument()
@@ -192,30 +469,20 @@ describe('LibraryPage', () => {
   })
 
   it('localizes package import failures and hides the raw diagnostic', async () => {
-    const { container } = render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({
-                importPackage: async () => ({
-                  ok: false,
-                  errors: [
-                    {
-                      code: 'invalid-package',
-                      detail: 'route-mismatch',
-                      message: 'raw diagnostic',
-                    },
-                  ],
-                }),
-              }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+    const { container } = renderLibrary(
+      makeForms({
+        importPackage: async () => ({
+          ok: false,
+          errors: [
+            {
+              code: 'invalid-package',
+              detail: 'route-mismatch',
+              message: 'raw diagnostic',
+            },
+          ],
+        }),
+      }),
+      'es',
     )
 
     const input = container.querySelector(
@@ -236,20 +503,7 @@ describe('LibraryPage', () => {
 
   it('localizes the delete confirmation', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
-    )
+    renderLibrary(makeForms({ list: async () => [summary] }), 'es')
 
     await userEvent.click(
       await screen.findByRole('button', { name: 'Eliminar' }),
@@ -262,23 +516,13 @@ describe('LibraryPage', () => {
 
   it('localizes library list failures', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({
-                list: async () => {
-                  throw new Error('raw diagnostic')
-                },
-              }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+    renderLibrary(
+      makeForms({
+        list: async () => {
+          throw new Error('raw diagnostic')
+        },
+      }),
+      'es',
     )
 
     expect(
@@ -288,24 +532,14 @@ describe('LibraryPage', () => {
   })
 
   it('localizes rename failures in Basque', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="eu">
-          <ServicesProvider
-            value={{
-              forms: makeForms({
-                list: async () => [summary],
-                rename: async () => {
-                  throw new TemplateFormError('not-found', 'raw diagnostic')
-                },
-              }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+    renderLibrary(
+      makeForms({
+        list: async () => [summary],
+        rename: async () => {
+          throw new TemplateFormError('not-found', 'raw diagnostic')
+        },
+      }),
+      'eu',
     )
 
     await userEvent.click(
@@ -344,6 +578,55 @@ describe('FormPage', () => {
     expect(screen.getByRole('option', { name: 'Choose…' })).toBeInTheDocument()
   })
 
+  it('puts the shared back link above the form title and keeps the leave warning', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderFormPage(makeForms({ get: async () => view }))
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', { name: 'Employment contract' })
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Ada')
+    await userEvent.click(back)
+
+    expect(confirm).toHaveBeenCalledWith(
+      'You have unsaved answers. Leave this page anyway?',
+    )
+  })
+
+  it('places the language badges after the title and before the optional-fields note', async () => {
+    renderFormPage(makeForms({ get: async () => view }))
+
+    const heading = await screen.findByRole('heading', {
+      name: 'Employment contract',
+    })
+    const badges = screen.getByRole('group', { name: 'Document languages' })
+    const english = within(badges).getByText('en')
+    const spanish = within(badges).getByText('es')
+    const note = screen.getByText('All fields are optional.')
+
+    expectBefore(heading, english)
+    expectBefore(english, spanish)
+    expectBefore(spanish, note)
+  })
+
+  it('keeps the localized single-language badge with the form title', async () => {
+    renderFormPage(
+      makeForms({ get: async () => viewSingle }),
+      '/f/ghi789',
+      'es',
+    )
+
+    const heading = await screen.findByRole('heading', { name: 'Legacy contract' })
+    const badges = screen.getByRole('group', { name: 'Idiomas de los documentos' })
+    const badge = within(badges).getByText('Idioma único')
+    const note = screen.getByText('Todos los campos son opcionales.')
+
+    expectBefore(heading, badge)
+    expectBefore(badge, note)
+  })
+
   it('fills answers and downloads the filled document', async () => {
     const fill = vi.fn<FormsApi['fill']>(async () => filledSet)
     renderFormPage(makeForms({ get: async () => view, fill }))
@@ -369,6 +652,20 @@ describe('FormPage', () => {
     expect(screen.getByText('Spain · France')).toBeInTheDocument()
     expect(screen.getByText('España · Francia')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open form/i })).toBeInTheDocument()
+  })
+
+  it('puts the back link above the detected-fields heading and keeps Open form', async () => {
+    renderFormPage(makeForms({ get: async () => view }), '/f/abc123?detected=1')
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', { name: 'Detected fields' })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+    expect(screen.getByRole('link', { name: 'Open form' })).toHaveAttribute(
+      'href',
+      '/f/abc123',
+    )
   })
 
   it('localizes the detected screen and tags template text with its language', async () => {
@@ -467,11 +764,16 @@ describe('FormPage', () => {
 
     await userEvent.type(await screen.findByLabelText('Name'), 'Ada')
     await userEvent.selectOptions(screen.getByLabelText('Country'), 'France')
-    await userEvent.selectOptions(
-      screen.getByLabelText('Interface language'),
-      'es',
-    )
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
 
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: languageButtons.en })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
     expect(screen.getByLabelText('Name')).toHaveValue('Ada')
     expect(screen.getByLabelText('Country')).toHaveValue('France')
     expect(
@@ -500,6 +802,38 @@ describe('FormPage', () => {
     expect(
       await screen.findByText('Formulario no encontrado en este dispositivo'),
     ).toBeInTheDocument()
+  })
+
+  it('puts the back link above the load-failure heading', async () => {
+    renderFormPage(
+      makeForms({
+        get: async () => {
+          throw new TemplateFormError('not-found', 'raw diagnostic', {
+            detail: 'not-found',
+          })
+        },
+      }),
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', {
+      name: 'This form could not be loaded.',
+    })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+  })
+
+  it('puts the back link above the missing-form heading', async () => {
+    renderFormPage(makeForms({ get: async () => null }))
+
+    const back = await screen.findByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', {
+      name: 'Form not found on this device',
+    })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
   })
 
   it('localizes form load failures', async () => {
@@ -552,6 +886,30 @@ describe('FormPage', () => {
 })
 
 describe('PreviewPage', () => {
+  it('keeps the back link above the loading message', () => {
+    const pending = new Promise<FormView | null>(() => undefined)
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: () => pending }), preview: fakePreview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = screen.getByRole('link', { name: 'Back to form' })
+    const loading = screen.getByText('Loading…')
+
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, loading)
+  })
+
   it('renders a sandboxed iframe without allowing same-origin access', async () => {
     sessionStorage.setItem(
       previewStorageKey('abc123'),
@@ -581,6 +939,118 @@ describe('PreviewPage', () => {
     const frame = await screen.findByTitle('Approximate preview')
     expect(frame.tagName).toBe('IFRAME')
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
+  })
+
+  it('puts the preview back link above the heading and keeps print, download, and tabs', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const preview: PreviewRenderer = {
+      render: async () => ({
+        kind: 'html',
+        html: '<!doctype html><html><body>Preview</body></html>',
+      }),
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: async () => view }), preview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to form' })
+    const heading = screen.getByRole('heading', { name: 'Approximate preview' })
+
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, heading)
+
+    expect(
+      screen.getByRole('tablist', { name: 'Document languages' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Download filled documents' }),
+    ).toBeInTheDocument()
+  })
+
+  it('puts the back link above the preview form-load failure heading', async () => {
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({
+                get: async () => {
+                  throw new TemplateFormError('not-found', 'raw diagnostic', {
+                    detail: 'not-found',
+                  })
+                },
+              }),
+              preview: fakePreview,
+            }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to form' })
+    const heading = screen.getByRole('heading', {
+      name: 'Could not complete that action',
+    })
+
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, heading)
+  })
+
+  it('puts the back link above the heading when filling the preview fails', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const fill = vi.fn<FormsApi['fill']>(async () => {
+      throw new TemplateFormError('invalid-answer', 'raw diagnostic', {
+        detail: 'invalid-answer',
+        params: { label: 'Name', answer: 'x' },
+      })
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{
+              forms: makeForms({ get: async () => view, fill }),
+              preview: fakePreview,
+            }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = await screen.findByRole('link', { name: 'Back to form' })
+    const heading = screen.getByRole('heading', { name: 'Approximate preview' })
+
+    expectBefore(back, heading)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not complete that action',
+    )
   })
 
   it('localizes preview chrome and keeps document-language tabs independent', async () => {
@@ -613,14 +1083,15 @@ describe('PreviewPage', () => {
       screen.getByRole('tab', { name: 'en' }),
     ).toHaveAttribute('aria-selected', 'true')
 
-    await userEvent.selectOptions(
-      screen.getByLabelText('Interface language'),
-      'es',
-    )
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
 
     expect(
       await screen.findByTitle('Vista previa aproximada'),
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
     expect(
       screen.getByRole('tab', { name: 'en' }),
     ).toHaveAttribute('aria-selected', 'true')
@@ -803,24 +1274,191 @@ describe('PreviewPage', () => {
         'Rellena el formulario primero para previsualizar un documento.',
       ),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: 'Volver al formulario' }),
-    ).toBeInTheDocument()
+    const back = screen.getByRole('link', { name: 'Volver al formulario' })
+    const heading = screen.getByRole('heading', { name: 'Vista previa aproximada' })
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, heading)
   })
 })
 
 describe('App shell', () => {
-  function renderApp(entry = '/', locale?: InterfaceLocale) {
+  function renderApp(
+    entry = '/',
+    locale?: InterfaceLocale,
+    options: {
+      forms?: FormsApi
+      preview?: PreviewRenderer
+      basename?: string
+    } = {},
+  ) {
     return render(
-      <MemoryRouter initialEntries={[entry]}>
+      <MemoryRouter basename={options.basename} initialEntries={[entry]}>
         <I18nProvider initialLocale={locale}>
-          <ServicesProvider value={{ forms: makeForms(), preview: fakePreview }}>
+          <ServicesProvider
+            value={{
+              forms: options.forms ?? makeForms(),
+              preview: options.preview ?? fakePreview,
+            }}
+          >
             <App />
           </ServicesProvider>
         </I18nProvider>
       </MemoryRouter>,
     )
   }
+
+  function navLink(name: string) {
+    return within(screen.getByRole('navigation')).getByRole('link', { name })
+  }
+
+  it('renders a compact header with the app name, menu, and language buttons', () => {
+    renderApp('/', 'en')
+
+    expect(screen.getByRole('link', { name: 'Docform' })).toHaveAttribute(
+      'href',
+      '/',
+    )
+    expect(screen.getByRole('link', { name: 'Forms' })).toHaveAttribute(
+      'href',
+      '/',
+    )
+    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute(
+      'href',
+      '/docs',
+    )
+
+    const group = screen.getByRole('group', { name: 'Interface language' })
+    const buttons = within(group).getAllByRole('button')
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      'eu',
+      'es',
+      'en',
+    ])
+    expect(buttons.map((button) => button.getAttribute('lang'))).toEqual([
+      'eu',
+      'es',
+      'en',
+    ])
+    for (const button of buttons) {
+      const accessibleName =
+        button.getAttribute('aria-label') ?? button.textContent ?? ''
+      expect(accessibleName).toContain(button.textContent)
+    }
+  })
+
+  it('removes the tagline and the old language select', () => {
+    renderApp('/', 'en')
+
+    expect(
+      screen.queryByText(
+        'Turn documents into forms without leaving your browser.',
+      ),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('marks the selected language with aria-pressed and its language tag', () => {
+    renderApp('/', 'es')
+
+    const group = screen.getByRole('group', { name: 'Idioma de la interfaz' })
+    const euskara = within(group).getByRole('button', { name: languageButtons.eu })
+    const espanol = within(group).getByRole('button', { name: languageButtons.es })
+    const english = within(group).getByRole('button', { name: languageButtons.en })
+
+    expect(euskara).toHaveAttribute('lang', 'eu')
+    expect(espanol).toHaveAttribute('lang', 'es')
+    expect(english).toHaveAttribute('lang', 'en')
+    expect(euskara).toHaveAttribute('aria-pressed', 'false')
+    expect(espanol).toHaveAttribute('aria-pressed', 'true')
+    expect(english).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it.each([
+    ['eu', 'Formularioak', 'Gida'],
+    ['es', 'Formularios', 'Guía'],
+  ] as const)('localizes the menu labels in %s', (locale, forms, docs) => {
+    renderApp('/', locale)
+
+    expect(screen.getByRole('link', { name: forms })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: docs })).toBeInTheDocument()
+  })
+
+  it('marks Forms active on the library route', () => {
+    renderApp('/', 'en')
+
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Forms active on a form route', async () => {
+    renderApp('/f/abc123', 'en', {
+      forms: makeForms({ get: async () => view }),
+    })
+
+    expect(await screen.findByLabelText('Name')).toBeInTheDocument()
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'true')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Forms active on the preview route', async () => {
+    sessionStorage.setItem(
+      previewStorageKey('abc123'),
+      JSON.stringify([['Name', 'Ada']]),
+    )
+    const preview: PreviewRenderer = {
+      render: async () => ({
+        kind: 'html',
+        html: '<!doctype html><html><body>Preview</body></html>',
+      }),
+    }
+    renderApp('/f/abc123/preview', 'en', {
+      forms: makeForms({ get: async () => view }),
+      preview,
+    })
+
+    expect(await screen.findByTitle('Approximate preview')).toBeInTheDocument()
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'true')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks Docs active on the guide route', async () => {
+    renderApp('/docs', 'en')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Docform guide' }),
+    ).toBeInTheDocument()
+    expect(navLink('Docs')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Forms')).not.toHaveAttribute('aria-current')
+  })
+
+  it('keeps menu links and active state under the Pages basename', async () => {
+    renderApp('/docform/docs', 'en', { basename: '/docform/' })
+
+    expect(navLink('Forms')).toHaveAttribute('href', '/docform/')
+    expect(navLink('Docs')).toHaveAttribute('href', '/docform/docs')
+    expect(
+      await screen.findByRole('heading', { name: 'Docform guide' }),
+    ).toBeInTheDocument()
+    expect(navLink('Docs')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Forms')).not.toHaveAttribute('aria-current')
+  })
+
+  it('navigates between Forms and Docs and moves the active item', async () => {
+    renderApp('/docs', 'en')
+
+    await userEvent.click(navLink('Forms'))
+    expect(
+      await screen.findByRole('heading', { name: 'Your forms' }),
+    ).toBeInTheDocument()
+    expect(navLink('Forms')).toHaveAttribute('aria-current', 'page')
+    expect(navLink('Docs')).not.toHaveAttribute('aria-current')
+
+    await userEvent.click(navLink('Docs'))
+    expect(
+      await screen.findByRole('heading', { name: 'Docform guide' }),
+    ).toBeInTheDocument()
+    expect(navLink('Docs')).toHaveAttribute('aria-current', 'page')
+  })
 
   it('switches the interface between Euskara, Español, and English', async () => {
     renderApp('/', 'en')
@@ -830,21 +1468,33 @@ describe('App shell', () => {
       'href',
       '/docs',
     )
-    const select = screen.getByRole('combobox')
-    expect(screen.getByRole('option', { name: 'Euskara' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: languageButtons.en })).toHaveAttribute(
       'lang',
-      'eu',
+      'en',
     )
 
-    await userEvent.selectOptions(select, 'es')
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('es')
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: languageButtons.en })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
 
-    await userEvent.selectOptions(select, 'eu')
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.eu }))
     expect(
       screen.getByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('eu')
+    expect(screen.getByRole('button', { name: languageButtons.eu })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(localStorage.getItem(INTERFACE_LOCALE_STORAGE_KEY)).toBe('eu')
   })
 
   it('opens the localized guide from the header and updates with the interface language', async () => {
@@ -854,13 +1504,12 @@ describe('App shell', () => {
       await screen.findByRole('heading', { name: 'Docform guide' }),
     ).toBeInTheDocument()
 
-    const select = screen.getByRole('combobox')
-    await userEvent.selectOptions(select, 'es')
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
     expect(
       screen.getByRole('heading', { name: 'Guía de Docform' }),
     ).toBeInTheDocument()
 
-    await userEvent.selectOptions(select, 'eu')
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.eu }))
     expect(
       screen.getByRole('heading', { name: 'Docform gida' }),
     ).toBeInTheDocument()
@@ -873,7 +1522,10 @@ describe('App shell', () => {
     expect(
       await screen.findByRole('heading', { name: 'Zure formularioak' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('combobox')).toHaveValue('eu')
+    expect(screen.getByRole('button', { name: languageButtons.eu })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
   it('localizes the new-form panel and its local validation', async () => {
@@ -910,7 +1562,7 @@ describe('App shell', () => {
     await userEvent.upload(screen.getByLabelText('Plantilla 1'), file)
     await userEvent.clear(screen.getByLabelText('Idioma del documento 2'))
     await userEvent.type(screen.getByLabelText('Idioma del documento 2'), 'eu')
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'eu')
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.eu }))
 
     expect(await screen.findByLabelText('Txantiloia 1')).toBeInTheDocument()
     expect(screen.getByLabelText('Dokumentuaren hizkuntza 2')).toHaveValue('eu')
@@ -1046,29 +1698,22 @@ describe('App shell', () => {
     })
 
     renderApp('/', 'en')
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'es')
+    await userEvent.click(screen.getByRole('button', { name: languageButtons.es }))
 
     expect(screen.getByRole('heading', { name: 'Tus formularios' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: languageButtons.es })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
-  it('localizes the library, counts, and single-language badge', async () => {
-    render(
-      <MemoryRouter>
-        <I18nProvider initialLocale="es">
-          <ServicesProvider
-            value={{
-              forms: makeForms({ list: async () => [summary, summarySingle] }),
-              preview: fakePreview,
-            }}
-          >
-            <LibraryPage />
-          </ServicesProvider>
-        </I18nProvider>
-      </MemoryRouter>,
+  it('localizes the library and single-language badge', async () => {
+    renderLibrary(
+      makeForms({ list: async () => [summary, summarySingle] }),
+      'es',
     )
 
     expect(await screen.findByText('Tus formularios')).toBeInTheDocument()
-    expect(screen.getByText('2 idiomas')).toBeInTheDocument()
     expect(screen.getByText('Idioma único')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /nuevo formulario/i }),
@@ -1095,6 +1740,32 @@ describe('App shell', () => {
     expect(
       await screen.findByRole('heading', { name: 'Página no encontrada' }),
     ).toBeInTheDocument()
+  })
+
+  it('puts the unknown-route back link above the heading', async () => {
+    renderApp('/missing', 'en')
+
+    const back = screen.getByRole('link', { name: 'Back to forms' })
+    const heading = await screen.findByRole('heading', { name: 'Page not found' })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
+  })
+
+  it('puts the unexpected-error back link above the heading', () => {
+    render(
+      <MemoryRouter>
+        <I18nProvider initialLocale="en">
+          <UnexpectedErrorPage />
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = screen.getByRole('link', { name: 'Back to forms' })
+    const heading = screen.getByRole('heading', { name: 'Something went wrong' })
+
+    expect(back).toHaveAttribute('href', '/')
+    expectBefore(back, heading)
   })
 
   it('localizes the unknown-route page in Basque', async () => {
