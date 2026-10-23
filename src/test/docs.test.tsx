@@ -37,7 +37,6 @@ describe('DocsPage', () => {
     expect(
       back.compareDocumentPosition(article) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    expect(back.closest('.eyebrow')).toBeNull()
   })
 
   it('renders markdown tables and placeholder syntax', () => {

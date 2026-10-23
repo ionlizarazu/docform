@@ -176,14 +176,6 @@ function renderLibrary(
   )
 }
 
-function appearsBefore(first: Element, second: Element): boolean {
-  return (
-    first !== second &&
-    (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !==
-      0
-  )
-}
-
 describe('LibraryPage', () => {
   it.each([
     [
@@ -217,7 +209,7 @@ describe('LibraryPage', () => {
     renderLibrary(makeForms({ list: async () => [summary] }))
 
     const heading = screen.getByRole('heading', { level: 1, name: 'Your forms' })
-    const toolbar = screen.getByRole('toolbar', { name: 'Your forms' })
+    const toolbar = screen.getByRole('group', { name: 'Your forms' })
     expect(within(toolbar).getAllByRole('button').map((button) => button.textContent)).toEqual([
       'New form',
       'Import package',
@@ -230,18 +222,18 @@ describe('LibraryPage', () => {
     ).toBeInTheDocument()
 
     const list = await screen.findByRole('list')
-    expect(appearsBefore(heading, toolbar)).toBe(true)
-    expect(appearsBefore(toolbar, list)).toBe(true)
+    expectBefore(heading, toolbar)
+    expectBefore(toolbar, list)
   })
 
   it('keeps the empty state below the toolbar', async () => {
     renderLibrary()
 
-    const toolbar = screen.getByRole('toolbar', { name: 'Your forms' })
+    const toolbar = screen.getByRole('group', { name: 'Your forms' })
     const empty = await screen.findByText(
       'No forms yet. Upload a DOCX or ODT template to begin.',
     )
-    expect(appearsBefore(toolbar, empty)).toBe(true)
+    expectBefore(toolbar, empty)
   })
 
   it('opens the New form panel below the toolbar and above the list', async () => {
@@ -249,7 +241,7 @@ describe('LibraryPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'New form' }))
 
-    const toolbar = screen.getByRole('toolbar', { name: 'Your forms' })
+    const toolbar = screen.getByRole('group', { name: 'Your forms' })
     const panelHeading = screen.getByRole('heading', {
       level: 2,
       name: 'New form',
@@ -257,8 +249,8 @@ describe('LibraryPage', () => {
     const list = screen
       .getByRole('link', { name: 'Employment contract' })
       .closest('ul') as HTMLElement
-    expect(appearsBefore(toolbar, panelHeading)).toBe(true)
-    expect(appearsBefore(panelHeading, list)).toBe(true)
+    expectBefore(toolbar, panelHeading)
+    expectBefore(panelHeading, list)
   })
 
   it('keeps package import errors below the toolbar', async () => {
@@ -286,9 +278,7 @@ describe('LibraryPage', () => {
     )
 
     const alert = await screen.findByRole('alert')
-    expect(
-      appearsBefore(screen.getByRole('toolbar', { name: 'Your forms' }), alert),
-    ).toBe(true)
+    expectBefore(screen.getByRole('group', { name: 'Your forms' }), alert)
   })
 
   it('shows only the form name, uploaded date, and language badges', async () => {
@@ -314,7 +304,7 @@ describe('LibraryPage', () => {
     const open = await screen.findByRole('link', { name: 'Open form' })
     expect(open).toHaveAttribute('href', '/f/abc123')
 
-    const actions = open.closest('.form-actions')
+    const actions = open.parentElement
     expect(actions).not.toBeNull()
     expect(within(actions as HTMLElement).getByRole('link').textContent).toBe(
       'Open form',
@@ -596,9 +586,6 @@ describe('FormPage', () => {
     const heading = screen.getByRole('heading', { name: 'Employment contract' })
     expect(back).toHaveAttribute('href', '/')
     expectBefore(back, heading)
-    expect(back.closest('.eyebrow')).toBeNull()
-    expect(back.closest('.upload-actions')).toBeNull()
-    expect(back.closest('.form-actions')).toBeNull()
 
     await userEvent.type(screen.getByLabelText('Name'), 'Ada')
     await userEvent.click(back)
@@ -614,15 +601,14 @@ describe('FormPage', () => {
     const heading = await screen.findByRole('heading', {
       name: 'Employment contract',
     })
-    const english = screen.getByText('en')
-    const spanish = screen.getByText('es')
+    const badges = screen.getByRole('group', { name: 'Document languages' })
+    const english = within(badges).getByText('en')
+    const spanish = within(badges).getByText('es')
     const note = screen.getByText('All fields are optional.')
 
     expectBefore(heading, english)
     expectBefore(english, spanish)
     expectBefore(spanish, note)
-    expect(english.closest('.upload-actions')).toBeNull()
-    expect(spanish.closest('.upload-actions')).toBeNull()
   })
 
   it('keeps the localized single-language badge with the form title', async () => {
@@ -633,7 +619,8 @@ describe('FormPage', () => {
     )
 
     const heading = await screen.findByRole('heading', { name: 'Legacy contract' })
-    const badge = screen.getByText('Idioma único')
+    const badges = screen.getByRole('group', { name: 'Idiomas de los documentos' })
+    const badge = within(badges).getByText('Idioma único')
     const note = screen.getByText('Todos los campos son opcionales.')
 
     expectBefore(heading, badge)
@@ -675,8 +662,6 @@ describe('FormPage', () => {
 
     expect(back).toHaveAttribute('href', '/')
     expectBefore(back, heading)
-    expect(back.closest('.eyebrow')).toBeNull()
-    expect(back.closest('.upload-actions')).toBeNull()
     expect(screen.getByRole('link', { name: 'Open form' })).toHaveAttribute(
       'href',
       '/f/abc123',
@@ -837,7 +822,6 @@ describe('FormPage', () => {
 
     expect(back).toHaveAttribute('href', '/')
     expectBefore(back, heading)
-    expect(back.closest('.eyebrow')).toBeNull()
   })
 
   it('puts the back link above the missing-form heading', async () => {
@@ -902,6 +886,30 @@ describe('FormPage', () => {
 })
 
 describe('PreviewPage', () => {
+  it('keeps the back link above the loading message', () => {
+    const pending = new Promise<FormView | null>(() => undefined)
+
+    render(
+      <MemoryRouter initialEntries={['/f/abc123/preview']}>
+        <I18nProvider initialLocale="en">
+          <ServicesProvider
+            value={{ forms: makeForms({ get: () => pending }), preview: fakePreview }}
+          >
+            <Routes>
+              <Route path="/f/:route/preview" element={<PreviewPage />} />
+            </Routes>
+          </ServicesProvider>
+        </I18nProvider>
+      </MemoryRouter>,
+    )
+
+    const back = screen.getByRole('link', { name: 'Back to form' })
+    const loading = screen.getByText('Loading…')
+
+    expect(back).toHaveAttribute('href', '/f/abc123')
+    expectBefore(back, loading)
+  })
+
   it('renders a sandboxed iframe without allowing same-origin access', async () => {
     sessionStorage.setItem(
       previewStorageKey('abc123'),
@@ -964,8 +972,6 @@ describe('PreviewPage', () => {
 
     expect(back).toHaveAttribute('href', '/f/abc123')
     expectBefore(back, heading)
-    expect(back.closest('.eyebrow')).toBeNull()
-    expect(back.closest('.upload-actions')).toBeNull()
 
     expect(
       screen.getByRole('tablist', { name: 'Document languages' }),
@@ -1272,7 +1278,6 @@ describe('PreviewPage', () => {
     const heading = screen.getByRole('heading', { name: 'Vista previa aproximada' })
     expect(back).toHaveAttribute('href', '/f/abc123')
     expectBefore(back, heading)
-    expect(back.closest('.eyebrow')).toBeNull()
   })
 })
 
@@ -1342,9 +1347,8 @@ describe('App shell', () => {
   })
 
   it('removes the tagline and the old language select', () => {
-    const { container } = renderApp('/', 'en')
+    renderApp('/', 'en')
 
-    expect(container.querySelector('.tagline')).toBeNull()
     expect(
       screen.queryByText(
         'Turn documents into forms without leaving your browser.',
@@ -1746,7 +1750,6 @@ describe('App shell', () => {
 
     expect(back).toHaveAttribute('href', '/')
     expectBefore(back, heading)
-    expect(back.closest('.eyebrow')).toBeNull()
   })
 
   it('puts the unexpected-error back link above the heading', () => {

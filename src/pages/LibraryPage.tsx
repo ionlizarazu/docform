@@ -231,7 +231,7 @@ export default function LibraryPage() {
 
       <div
         className="library-toolbar"
-        role="toolbar"
+        role="group"
         aria-labelledby="library-title"
       >
         <button
